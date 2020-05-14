@@ -1,0 +1,89 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package com.softwareplumbers.feed.service.sql;
+
+import com.softwareplumbers.common.abstractquery.visitor.Visitors;
+import com.softwareplumbers.common.pipedstream.OutputStreamConsumer;
+import com.softwareplumbers.common.sql.Schema;
+import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
+import com.softwareplumbers.feed.FeedPath;
+import com.softwareplumbers.feed.Message;
+import com.softwareplumbers.feed.impl.MessageImpl;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.stream.Stream;
+import javax.json.JsonObject;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+/**
+ *
+ * @author jonathan
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(classes = { LocalConfig.class })
+public class TestDatabaseInterface {
+    
+    @Autowired
+    MessageDatabase database;
+    
+    @Autowired
+    Schema schema;
+    
+    @Before
+    public void createSchema() throws SQLException {
+        schema.dropSchema();        
+        schema.createSchema();        
+        schema.updateSchema();        
+    }
+    
+    public static final FeedPath BASEBALL = FeedPath.valueOf("department/interest/baseball");
+    public static FeedPath addId(FeedPath path) { return path.addId(Id.generate().toString()); }
+    public static InputStream toStream(String data) { return new ByteArrayInputStream(data.getBytes()); }
+    public static String toString(InputStream data) throws IOException { 
+        ByteArrayOutputStream os = new ByteArrayOutputStream(); 
+        OutputStreamConsumer.of(()->data).consume(os); 
+        return os.toString(); 
+    }
+    
+    @Test
+    public void testCreateFeed() throws SQLException, InvalidPath {
+        try (DatabaseInterface api = database.getInterface()) {
+            Id id = api.createFeed(BASEBALL);
+            api.commit();
+            assertThat(id.toString(), not(nullValue()));
+            assertThat(id.toString(), not(isEmptyString()));
+        }
+    }
+
+    @Test
+    public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException {
+        try (DatabaseInterface api = database.getInterface()) {
+            Id feedId = api.createFeed(BASEBALL);
+            Message testMessage = new MessageImpl(addId(BASEBALL), Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), false);
+            api.createMessage(feedId, testMessage);
+            api.commit();
+            try (Stream<Message> results = api.getMessagesFrom(BASEBALL, Instant.EPOCH)) {
+                Message[] messages = results.toArray(Message[]::new);
+                assertThat(messages, arrayWithSize(1));
+                assertThat(messages[0], equalTo(testMessage));
+                assertThat(toString(messages[0].getData()), equalTo("abc123"));
+            }
+        }        
+    }
+}

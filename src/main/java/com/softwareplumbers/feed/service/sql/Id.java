@@ -43,6 +43,13 @@ public class Id {
         return new Id(value);
     }
     
+    public static Id of(byte[] data) {
+        ByteBuffer bb = ByteBuffer.wrap(data);
+        long firstLong = bb.getLong();
+        long secondLong = bb.getLong();
+        return new Id(new UUID(firstLong, secondLong).toString());
+    }
+    
     public static Id generate() {
         return new Id();
     }

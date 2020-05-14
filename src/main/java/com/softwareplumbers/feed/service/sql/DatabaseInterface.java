@@ -8,18 +8,24 @@ package com.softwareplumbers.feed.service.sql;
 import com.softwareplumbers.common.abstractquery.Param;
 import com.softwareplumbers.common.abstractquery.Query;
 import com.softwareplumbers.common.abstractquery.Range;
-import com.softwareplumbers.common.abstractquery.visitor.Visitors;
 import com.softwareplumbers.common.abstractquery.visitor.Visitors.ParameterizedSQL;
 import com.softwareplumbers.common.sql.AbstractInterface;
+import com.softwareplumbers.common.sql.FluentStatement;
+import com.softwareplumbers.common.sql.Mapper;
 import com.softwareplumbers.common.sql.OperationStore;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.common.sql.TemplateStore;
+import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
 import com.softwareplumbers.feed.Message;
+import com.softwareplumbers.feed.impl.MessageImpl;
+import com.softwareplumbers.feed.service.sql.MessageDatabase.Operation;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Template;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Type;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.json.Json;
 import javax.json.JsonValue;
@@ -31,8 +37,24 @@ import javax.json.JsonValue;
  */
 public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template> {
 
-    private static final Range NULL_VERSION = Range.equals(Json.createValue(""));
+    private static final Range NULL_VERSION = Range.equals(Json.createValue(""));  
     
+    private static final Mapper<Id> GET_ID = results->Id.of(results.getBytes("ID"));
+    
+    private static final Mapper<Message> GET_MESSAGE = results -> {
+        try {
+            return new MessageImpl(
+                FeedPath.valueOf(results.getString(2)), 
+                Mapper.toInstant(results.getTimestamp(3)), 
+                Mapper.toJson(results.getCharacterStream(5)), 
+                results.getBinaryStream(6), 
+                true
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    };
+       
     public DatabaseInterface(Schema<MessageDatabase.Type> schema, OperationStore<MessageDatabase.Operation> operations, TemplateStore<MessageDatabase.Template> templates) throws SQLException {
         super(schema, operations, templates);
     }
@@ -118,8 +140,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
                 
         return result;        
     }
-    
-    
+       
     String getNameExpression(FeedPath basePath, FeedPath path) {
         StringBuilder builder = new StringBuilder();
         int depth = path.afterFeedId().size();
@@ -138,14 +159,86 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
         return new ParameterizedSQL(builder.toString(), "basePath");
     }    
 
-    ParameterizedSQL getNodeSQL(FeedPath path) {
+    FluentStatement getFeedSQL(FeedPath path) {
         ParameterizedSQL criteria = getParameterizedNameQuery("path", path).toExpression(schema.getFormatter(Type.FEED));
         ParameterizedSQL name =  getParametrizedNameExpression(path);
-        return templates.getParameterizedSQL(Template.GET_FEED, name, criteria);
-    }    
+        return templates.getStatement(Template.GET_FEED_BY_NAME, name, criteria);
+    }
+
+    FluentStatement getMessagesFromSQL(FeedPath feed) {
+        Query feedQuery = getParameterizedNameQuery("path", feed);
+        Query messageQuery = Query.intersect(Query.from("feed", feedQuery), Query.from("timestamp", Range.greaterThan(Param.from("timestamp"))));
+        return templates.getStatement(Template.SELECT_MESSAGES, messageQuery.toExpression(schema.getFormatter(Type.MESSAGE)));        
+    }
     
-    public Stream<Message> getMessagesFrom(FeedPath room, Instant from) {
-        return null;
+    public Stream<Message> getMessagesFrom(FeedPath feed, Instant from) throws SQLException {
+        return getMessagesFromSQL(feed)
+            .set(CustomTypes.PATH, "path", feed)
+            .set("timestamp", from)
+            .execute(schema.datasource, GET_MESSAGE);
+    }
+    
+    public void createMessage(Id feedId, Message message) throws SQLException {
+        operations.getStatement(Operation.CREATE_MESSAGE)
+            .set(CustomTypes.ID, 1, Id.of(message.getId()))
+            .set(2, message.getName().toString())
+            .set(3, message.getTimestamp())
+            .set(CustomTypes.ID, 4, feedId)
+            .set(5, message.getHeaders())
+            .set(6, ()->message.getData())
+            .execute(con);
+    }
+
+    Optional<Id> validateFeedId(String idAsString) throws InvalidPath {
+        try (Stream<Id> ids = operations.getStatement(Operation.GET_FEED_BY_ID)
+            .set(CustomTypes.ID, 1, new Id(idAsString))
+            .execute(con, GET_ID)
+        ) {
+            return ids.findAny();
+        } catch (SQLException e) {
+            // SQL exception most likely due to a badly formatted UUID
+            throw new InvalidPath(FeedPath.ROOT.addId(idAsString));
+        }
+    }
+    
+    public Id getOrCreateFeed(FeedPath path) throws SQLException, InvalidPath {
+        if (path.isEmpty()) return LOG.exit(Id.ROOT_ID);
+        if (path.part.type == FeedPath.Element.Type.FEEDID) 
+            return LOG.exit(
+                validateFeedId(path.part.getId().get())
+                    .orElseThrow(()->LOG.throwing(new InvalidPath(path)))
+            );
+        Optional<Id> existing = getFeed(path);
+        if (existing.isPresent()) return LOG.exit(existing.get());
+        return LOG.exit(createFeed(path));
+        
+    }
+    
+    Id createFeed(Id parent, String name) throws SQLException {
+        Id id = Id.generate();
+        operations.getStatement(Operation.CREATE_FEED)
+            .set(CustomTypes.ID, 1, id)
+            .set(CustomTypes.ID, 2, parent)
+            .set(3, name)
+            .execute(con);
+        return id;
+    }
+
+    Id createFeed(FeedPath path) throws SQLException, InvalidPath {
+        if (path.isEmpty()) return Id.ROOT_ID;
+        if (path.part.type == FeedPath.Element.Type.MESSAGEID) throw LOG.throwing(new InvalidPath(path));
+        Id parent = getOrCreateFeed(path.parent);
+        return createFeed(parent, path.part.getName().get());
+    }
+    
+    Optional<Id> getFeed(FeedPath path) throws SQLException {
+        try (Stream<Id> ids = getFeedSQL(path)
+            .set("basePath", FeedPath.ROOT.toString())
+            .set(CustomTypes.PATH, "path", path)
+            .execute(con, GET_ID)
+        ) {
+            return ids.findAny();
+        }
     }
     
 }

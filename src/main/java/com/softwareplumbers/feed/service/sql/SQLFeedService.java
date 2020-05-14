@@ -16,7 +16,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -27,14 +26,12 @@ public class SQLFeedService implements FeedService {
     
     private final BufferPool bufferPool;
     private final Map<FeedPath, MessageBuffer> feeds = new ConcurrentHashMap<>();
-    private final long bufferFor;
     private final int bucketSize;
     private MessageDatabase database;
     
-    public SQLFeedService(long poolSize, int bucketSize, long bufferFor, TimeUnit units) {
+    public SQLFeedService(MessageDatabase database, long poolSize, int bucketSize) {
         this.bufferPool = new BufferPool((int)poolSize);
-        this.bufferFor = units.toMillis(bufferFor);
-        this.bucketSize = bucketSize;
+        this.bucketSize = bucketSize;        
     }
     
     private MessageBuffer getBuffer(FeedPath path) {
@@ -63,8 +60,45 @@ public class SQLFeedService implements FeedService {
     }
 
     @Override
-    public Message post(Message msg) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public Message post(FeedPath path, Message message) throws InvalidPath {
+        if (path.isEmpty() || path.part.getId().isPresent()) throw new InvalidPath(path);
+        MessageBuffer buffer = getBuffer(path);
+        synchronized(buffer) {
+            if (buffer.isEmpty()) {
+                Id feedId = createFeed(path);
+                databaseSync(feedId, buffer.now(), buffer);
+            } 
+        }
+        return buffer.addMessage(message);
+    }
+       
+    private void databaseSync(Id feedId, Instant from, MessageBuffer buffer) {
+        buffer.getMessagesAfter(from, iterator->{
+            Instant lastWritten = from;
+            try (DatabaseInterface dbi = database.getInterface()) {
+                while (iterator.hasNext()) {
+                    Message message = iterator.next();
+                    dbi.createMessage(feedId, message);
+                    dbi.commit();
+                    lastWritten = message.getTimestamp();
+                }
+            } catch (SQLException sqe) {
+                // Hmmm...
+            } finally {
+                iterator.close();
+                databaseSync(feedId, lastWritten, buffer);
+            }
+        });
+    }
+    
+    private Id createFeed(FeedPath path) throws InvalidPath {
+        try (DatabaseInterface dbi = database.getInterface()) {
+            Id feedId = dbi.getOrCreateFeed(path);
+            dbi.commit();
+            return feedId;
+        } catch (SQLException e) {
+            throw new RuntimeException("can't create feed", e);
+        }
     }
     
 }

@@ -1,0 +1,64 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+        xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+        http://www.springframework.org/schema/context 
+        http://www.springframework.org/schema/context/spring-context-4.3.xsd
+        http://www.springframework.org/schema/util
+        http://www.springframework.org/schema/util/spring-util-4.3.xsd
+        http://www.springframework.org/schema/aop 
+        http://www.springframework.org/schema/aop/spring-aop-4.3.xsd" 
+       xmlns:aop="http://www.springframework.org/schema/aop">
+    
+    <context:annotation-config />
+    
+    <bean id="feeds" class="com.softwareplumbers.common.sql.Schema.Entity">
+        <constructor-arg>
+            <map>
+                <entry key="id" value="ID"/>
+                <entry key="version" value="VERSION"/>
+                <entry key="parentId" value="PARENT_ID"/>
+                <entry key="parent" value="PARENT_ID"/>
+                <entry key="name" value="NAME"/>
+                <entry key="deleted" value="DELETED"/>
+            </map>
+        </constructor-arg>
+        <property name="name" value="FEEDS"/>
+        <property name="id" value="ID"/>
+        <property name="links">
+            <map>
+                <entry key="parent" value-ref="feeds"/>
+            </map>
+        </property>
+    </bean>    
+    
+    <bean id="messages" class="com.softwareplumbers.common.sql.Schema.Entity">
+        <constructor-arg>
+            <map>
+                <entry key="id" value="ID"/>
+                <entry key="feed" value="FEED_ID"/>
+                <entry key="timestamp" value="RECEIVED"/>
+                <entry key="headers" value="HEADERS"/>
+                <entry key="data" value="DATA"/>
+            </map>
+        </constructor-arg>    
+        <property name="name" value="MESSAGES"/>
+        <property name="id" value="ID"/>        
+        <property name="links">
+            <map>
+                <entry key="feed" value-ref="feeds"/>
+            </map>
+        </property>
+    </bean>
+    
+    <util:map id="entityMap" key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Type">
+        <entry key="FEED" value-ref="feeds"/>
+        <entry key="MESSAGE" value-ref="messages"/>
+    </util:map>
+    
+</beans>

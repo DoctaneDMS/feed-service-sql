@@ -33,13 +33,14 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.Type, Mess
     
     public enum Operation {
         CREATE_FEED,
+        GET_FEED_BY_ID,
         CREATE_MESSAGE,
         GET_MESSAGE
     }
     
     public enum Template {
-        SELECT_MESSAGES_AFTER,
+        SELECT_MESSAGES,
         NAME_EXPR,
-        GET_FEED
+        GET_FEED_BY_NAME
     }
 }
