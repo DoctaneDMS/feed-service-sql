@@ -8,6 +8,7 @@ package com.softwareplumbers.feed.service.sql;
 import com.softwareplumbers.common.abstractquery.visitor.Visitors;
 import com.softwareplumbers.common.pipedstream.OutputStreamConsumer;
 import com.softwareplumbers.common.sql.Schema;
+import com.softwareplumbers.feed.Feed;
 import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
 import com.softwareplumbers.feed.Message;
@@ -53,6 +54,7 @@ public class TestDatabaseInterface {
     }
     
     public static final FeedPath BASEBALL = FeedPath.valueOf("department/interest/baseball");
+    public static final FeedPath SOCCER = FeedPath.valueOf("department/interest/soccer");
     public static FeedPath addId(FeedPath path) { return path.addId(Id.generate().toString()); }
     public static InputStream toStream(String data) { return new ByteArrayInputStream(data.getBytes()); }
     public static String toString(InputStream data) throws IOException { 
@@ -64,21 +66,35 @@ public class TestDatabaseInterface {
     @Test
     public void testCreateFeed() throws SQLException, InvalidPath {
         try (DatabaseInterface api = database.getInterface()) {
-            Id id = api.createFeed(BASEBALL);
+            Feed feed = api.createFeed(BASEBALL);
             api.commit();
-            assertThat(id.toString(), not(nullValue()));
-            assertThat(id.toString(), not(isEmptyString()));
+            assertThat(feed.getId(), not(nullValue()));
+            assertThat(feed.getId(), not(isEmptyString()));
         }
     }
 
     @Test
+    public void testGetOrCreateFeed() throws SQLException, InvalidPath {
+        try (DatabaseInterface api = database.getInterface()) {
+            Feed feed = api.getOrCreateFeed(SOCCER);
+            api.commit();
+            assertThat(feed.getId(), not(nullValue()));
+            assertThat(feed.getId(), not(isEmptyString()));
+            Feed feed2 = api.getOrCreateFeed(SOCCER);
+            api.commit();
+            assertThat(feed2.getId(), equalTo(feed.getId()));
+            assertThat(feed2.getName(), equalTo(feed.getName()));
+        }
+    }    
+    
+    @Test
     public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException {
         try (DatabaseInterface api = database.getInterface()) {
-            Id feedId = api.createFeed(BASEBALL);
+            Feed feed = api.createFeed(BASEBALL);
             Message testMessage = new MessageImpl(addId(BASEBALL), Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), false);
-            api.createMessage(feedId, testMessage);
+            api.createMessage(Id.of(feed.getId()), testMessage);
             api.commit();
-            try (Stream<Message> results = api.getMessagesFrom(BASEBALL, Instant.EPOCH)) {
+            try (Stream<Message> results = api.getMessages(BASEBALL, Instant.EPOCH, Instant.now())) {
                 Message[] messages = results.toArray(Message[]::new);
                 assertThat(messages, arrayWithSize(1));
                 assertThat(messages[0], equalTo(testMessage));

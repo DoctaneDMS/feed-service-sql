@@ -1,5 +1,6 @@
 package com.softwareplumbers.feed.service.sql;
 
+import com.softwareplumbers.common.sql.AbstractDatabase.CreateOption;
 import com.softwareplumbers.common.sql.OperationStore;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.common.sql.Script;
@@ -40,10 +41,11 @@ public class LocalConfig {
         return schema;
     }
     
-    @Bean public MessageDatabase database() {
+    @Bean public MessageDatabase database() throws SQLException {
         MessageDatabase database = new MessageDatabase(schema());
         database.setOperations(context.getBean(OperationStore.class));
         database.setTemplates(context.getBean(TemplateStore.class));
+        database.setCreateOption(CreateOption.RECREATE);
         return database;
     }
     

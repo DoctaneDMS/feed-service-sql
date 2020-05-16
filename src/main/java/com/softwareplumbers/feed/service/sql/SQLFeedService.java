@@ -5,100 +5,87 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
+import com.softwareplumbers.feed.Feed;
+import com.softwareplumbers.feed.FeedExceptions.BaseRuntimeException;
 import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
-import com.softwareplumbers.feed.FeedService;
 import com.softwareplumbers.feed.Message;
 import com.softwareplumbers.feed.MessageIterator;
-import com.softwareplumbers.feed.impl.buffer.BufferPool;
-import com.softwareplumbers.feed.impl.buffer.MessageBuffer;
+import com.softwareplumbers.feed.impl.AbstractFeedService;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import org.slf4j.ext.XLogger;
+import org.slf4j.ext.XLoggerFactory;
 
 /**
  *
  * @author jonathan
  */
-public class SQLFeedService implements FeedService {
+public class SQLFeedService extends AbstractFeedService {
     
-    private final BufferPool bufferPool;
-    private final Map<FeedPath, MessageBuffer> feeds = new ConcurrentHashMap<>();
-    private final int bucketSize;
-    private MessageDatabase database;
+    private static final XLogger LOG = XLoggerFactory.getXLogger(SQLFeedService.class);
+    
+    private final MessageDatabase database;
     
     public SQLFeedService(MessageDatabase database, long poolSize, int bucketSize) {
-        this.bufferPool = new BufferPool((int)poolSize);
-        this.bucketSize = bucketSize;        
-    }
-    
-    private MessageBuffer getBuffer(FeedPath path) {
-        return feeds.computeIfAbsent(path, p->bufferPool.createBuffer(bucketSize));
+        super(poolSize, bucketSize);
+        this.database = database;
     }
 
     @Override
-    public void listen(FeedPath path, Instant from, Consumer<MessageIterator> callback) throws InvalidPath {
-        if (path.isEmpty() || path.part.getId().isPresent()) throw new InvalidPath(path);
-        getBuffer(path).getMessagesAfter(from, callback);
-    }
-
-    @Override
-    public MessageIterator sync(FeedPath path, Instant from) throws InvalidPath {
-        if (path.isEmpty() || path.part.getId().isPresent()) throw new InvalidPath(path);
-        MessageBuffer buffer = getBuffer(path);
-        if (buffer.firstTimestamp().map(ts->ts.compareTo(from) < 0).orElse(false)) {
-            return buffer.getMessagesAfter(from);        
-        } else {
-            try (DatabaseInterface dbi = database.getInterface()) {
-                return MessageIterator.of(dbi.getMessagesFrom(path, from));
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }      
-    }
-
-    @Override
-    public Message post(FeedPath path, Message message) throws InvalidPath {
-        if (path.isEmpty() || path.part.getId().isPresent()) throw new InvalidPath(path);
-        MessageBuffer buffer = getBuffer(path);
-        synchronized(buffer) {
-            if (buffer.isEmpty()) {
-                Id feedId = createFeed(path);
-                databaseSync(feedId, buffer.now(), buffer);
-            } 
-        }
-        return buffer.addMessage(message);
-    }
-       
-    private void databaseSync(Id feedId, Instant from, MessageBuffer buffer) {
-        buffer.getMessagesAfter(from, iterator->{
-            Instant lastWritten = from;
-            try (DatabaseInterface dbi = database.getInterface()) {
-                while (iterator.hasNext()) {
-                    Message message = iterator.next();
-                    dbi.createMessage(feedId, message);
-                    dbi.commit();
-                    lastWritten = message.getTimestamp();
-                }
-            } catch (SQLException sqe) {
-                // Hmmm...
-            } finally {
-                iterator.close();
-                databaseSync(feedId, lastWritten, buffer);
-            }
-        });
-    }
-    
-    private Id createFeed(FeedPath path) throws InvalidPath {
+    protected MessageIterator syncFromBackEnd(FeedPath path, Instant from, Instant to) {
+        LOG.entry(path, from, to);
         try (DatabaseInterface dbi = database.getInterface()) {
-            Id feedId = dbi.getOrCreateFeed(path);
-            dbi.commit();
-            return feedId;
-        } catch (SQLException e) {
-            throw new RuntimeException("can't create feed", e);
+            return LOG.exit(MessageIterator.of(dbi.getMessages(path, from, to)));
+        } catch (SQLException sqe) {
+            throw LOG.throwing(new RuntimeException(sqe));
         }
     }
+
+    @Override
+    protected void startBackEndListener(FeedPath path, Instant from) {
+        LOG.entry(path, from);
+        try (DatabaseInterface dbi = database.getInterface()) {
+            Feed feed = dbi.getOrCreateFeed(path);
+            dbi.commit();
+            listen(path, from, messages->writeToDatabase(feed, from, messages));
+        } catch (SQLException sqe) {
+            LOG.error("Critical error - unable to start database listener");
+            LOG.catching(sqe);
+            throw LOG.throwing(new RuntimeException(sqe));
+        } catch (InvalidPath e) {
+            LOG.error("Critical error - unable to start database listener");
+            LOG.catching(e);
+            throw LOG.throwing(new BaseRuntimeException(e));
+        }
+        LOG.exit();
+    }    
     
+    void writeToDatabase(Feed feed, Instant from, MessageIterator messages) {
+        LOG.entry(feed, from, messages);
+        Instant lastWritten = from;
+        int count = 0;
+        try (DatabaseInterface dbi = database.getInterface()) {
+            while (messages.hasNext()) {
+                Message message = messages.next();
+                try {
+                    dbi.createMessage(Id.of(feed.getId()), message);
+                    dbi.commit();
+                } catch (Exception ex) {
+                    LOG.error("Can't persist message {} {}", message.getName(), message.getTimestamp());
+                    LOG.catching(ex);
+                }
+                lastWritten = message.getTimestamp();
+                count++;
+            }
+        } catch (SQLException sqe) {
+            LOG.error("Catastropic failure {}", sqe);
+            LOG.catching(sqe);
+        } finally {
+            LOG.debug("Wrote {} messages for {} from {} to {}", count, feed, from, lastWritten);
+            Instant next = lastWritten; // It's this kind of thing that really pisses me off about java
+            feed.listen(this, next, msg->writeToDatabase(feed, next, msg));
+        }
+        LOG.exit();
+    }
 }
