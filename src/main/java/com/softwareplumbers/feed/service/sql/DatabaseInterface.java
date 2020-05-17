@@ -51,7 +51,8 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
                 FeedPath.valueOf(results.getString(2)), 
                 Mapper.toInstant(results.getTimestamp(3)), 
                 Mapper.toJson(results.getCharacterStream(5)), 
-                results.getBinaryStream(6), 
+                results.getBinaryStream(7), 
+                results.getLong(6),
                 true
             );
         } catch (IOException e) {
@@ -198,7 +199,8 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
             .set(3, message.getTimestamp())
             .set(CustomTypes.ID, 4, feedId)
             .set(5, message.getHeaders())
-            .set(6, ()->message.getData())
+            .set(6, message.getLength())
+            .set(7, ()->message.getData())
             .execute(con);
         LOG.exit();
     }

@@ -44,6 +44,7 @@
                 <entry key="feed" value="FEED_ID"/>
                 <entry key="timestamp" value="RECEIVED"/>
                 <entry key="headers" value="HEADERS"/>
+                <entry key="length" value="LENGTH"/>
                 <entry key="data" value="DATA"/>
             </map>
         </constructor-arg>    

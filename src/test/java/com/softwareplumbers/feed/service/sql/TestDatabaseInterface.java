@@ -91,7 +91,7 @@ public class TestDatabaseInterface {
     public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException {
         try (DatabaseInterface api = database.getInterface()) {
             Feed feed = api.createFeed(BASEBALL);
-            Message testMessage = new MessageImpl(addId(BASEBALL), Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), false);
+            Message testMessage = new MessageImpl(addId(BASEBALL), Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
             api.createMessage(Id.of(feed.getId()), testMessage);
             api.commit();
             try (Stream<Message> results = api.getMessages(BASEBALL, Instant.EPOCH, Instant.now())) {
