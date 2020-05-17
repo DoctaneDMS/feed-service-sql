@@ -46,7 +46,6 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
     private static final Mapper<Id> GET_ID = results->Id.of(results.getBytes("ID"));
     
     private static final Mapper<Message> GET_MESSAGE = results -> {
-        try {
             return new MessageImpl(
                 FeedPath.valueOf(results.getString(2)), 
                 Mapper.toInstant(results.getTimestamp(3)), 
@@ -55,9 +54,6 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
                 results.getLong(6),
                 true
             );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     };
     
     private static final Mapper<Feed> GET_FEED = results -> {

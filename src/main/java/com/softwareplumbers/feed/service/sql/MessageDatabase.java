@@ -17,15 +17,15 @@ import java.sql.SQLException;
  */
 public class MessageDatabase extends AbstractDatabase<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template, DatabaseInterface> {
 
-    public MessageDatabase(Schema<Type> schema) {
-        super(schema);
+    public MessageDatabase(Schema<Type> schema, OperationStore<Operation> os, TemplateStore<Template> ts) {
+        super(schema, os, ts);
     }
 
     @Override
     public DatabaseInterface createInterface(Schema<Type> schema, OperationStore<Operation> os, TemplateStore<Template> ts) throws SQLException {
         return new DatabaseInterface(schema, os, ts);
     }
-    
+  
     public enum Type {
         MESSAGE,
         FEED

@@ -42,9 +42,11 @@ public class LocalConfig {
     }
     
     @Bean public MessageDatabase database() throws SQLException {
-        MessageDatabase database = new MessageDatabase(schema());
-        database.setOperations(context.getBean(OperationStore.class));
-        database.setTemplates(context.getBean(TemplateStore.class));
+        MessageDatabase database = new MessageDatabase(
+            schema(),
+            context.getBean(OperationStore.class),
+            context.getBean(TemplateStore.class)
+        );
         database.setCreateOption(CreateOption.RECREATE);
         return database;
     }
