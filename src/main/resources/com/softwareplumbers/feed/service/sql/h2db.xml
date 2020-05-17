@@ -14,7 +14,7 @@
     <bean id="conversionService"
     class="org.springframework.context.support.ConversionServiceFactoryBean"/>
       
-    <bean id="dropScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="feed.dropScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
                 DROP TABLE IF EXISTS FEEDS;
@@ -23,7 +23,7 @@
         </property>
     </bean>
         
-    <bean id="createScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="feed.createScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
                 CREATE TABLE FEEDS (
@@ -50,7 +50,7 @@
         </property>
     </bean>
     
-    <bean id="updateScript" class="com.softwareplumbers.common.sql.Script">        
+    <bean id="feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
@@ -58,7 +58,7 @@
         </property>
     </bean>
     
-    <bean id="operationStore" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
+    <bean id="feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
                 <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?)"/>
@@ -69,7 +69,7 @@
         </constructor-arg>
     </bean>
     
-    <bean id="templateStore" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
+    <bean id="feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Template">
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>

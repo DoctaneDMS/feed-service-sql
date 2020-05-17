@@ -57,7 +57,7 @@
         </property>
     </bean>
     
-    <util:map id="entityMap" key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Type">
+    <util:map id="feed.entityMap" key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Type">
         <entry key="FEED" value-ref="feeds"/>
         <entry key="MESSAGE" value-ref="messages"/>
     </util:map>

@@ -34,10 +34,10 @@ public class LocalConfig {
     
     @Bean public Schema schema() {
         Schema schema = new Schema(datasource());
-        schema.setCreateScript(context.getBean("createScript", Script.class));
-        schema.setUpdateScript(context.getBean("updateScript", Script.class));
-        schema.setDropScript(context.getBean("dropScript", Script.class));
-        schema.setEntityMap(context.getBean("entityMap", Map.class));
+        schema.setCreateScript(context.getBean("feed.createScript", Script.class));
+        schema.setUpdateScript(context.getBean("feed.updateScript", Script.class));
+        schema.setDropScript(context.getBean("feed.dropScript", Script.class));
+        schema.setEntityMap(context.getBean("feed.entityMap", Map.class));
         return schema;
     }
     
