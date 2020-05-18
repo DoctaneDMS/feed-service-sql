@@ -80,5 +80,12 @@
             </map>
         </constructor-arg>
     </bean>
-
+    
+    <bean id="feed.Schema" class="com.softwareplumbers.common.sql.Schema"> 
+        <qualifier value="feed"/>
+        <property name="createScript" ref="feed.createScript"/>
+        <property name="updateScript" ref="feed.updateScript"/>
+        <property name="dropScript" ref="feed.dropScript"/>
+        <property name="entityMap" ref="feed.entityMap"/>
+    </bean>
 </beans>
