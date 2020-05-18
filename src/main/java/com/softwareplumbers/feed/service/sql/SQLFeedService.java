@@ -59,7 +59,12 @@ public class SQLFeedService extends AbstractFeedService {
             throw LOG.throwing(new BaseRuntimeException(e));
         }
         LOG.exit();
-    }    
+    }
+
+    @Override
+    protected String getIdFromBackEnd() {
+        return Id.generate().toString();
+    }
     
     void writeToDatabase(Feed feed, Instant from, MessageIterator messages) {
         LOG.entry(feed, from, messages);
