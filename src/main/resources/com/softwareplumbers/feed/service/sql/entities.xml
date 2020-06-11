@@ -42,6 +42,7 @@
             <map>
                 <entry key="id" value="ID"/>
                 <entry key="feed" value="FEED_ID"/>
+                <entry key="sender" value="SENDER"/>
                 <entry key="timestamp" value="RECEIVED"/>
                 <entry key="headers" value="HEADERS"/>
                 <entry key="length" value="LENGTH"/>

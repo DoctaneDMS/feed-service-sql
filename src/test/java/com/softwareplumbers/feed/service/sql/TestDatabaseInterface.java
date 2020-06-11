@@ -23,8 +23,6 @@ import java.util.stream.Stream;
 import javax.json.JsonObject;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -91,7 +89,7 @@ public class TestDatabaseInterface {
     public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException {
         try (DatabaseInterface api = database.getInterface()) {
             Feed feed = api.createFeed(BASEBALL);
-            Message testMessage = new MessageImpl(addId(BASEBALL), Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
+            Message testMessage = new MessageImpl(addId(BASEBALL), "testuser", Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
             api.createMessage(Id.of(feed.getId()), testMessage);
             api.commit();
             try (Stream<Message> results = api.getMessages(BASEBALL, Instant.EPOCH, Instant.now())) {
@@ -99,6 +97,7 @@ public class TestDatabaseInterface {
                 assertThat(messages, arrayWithSize(1));
                 assertThat(messages[0], equalTo(testMessage));
                 assertThat(toString(messages[0].getData()), equalTo("abc123"));
+                assertThat(messages[0].getSender(), equalTo("testuser"));
             }
         }        
     }
