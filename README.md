@@ -105,3 +105,27 @@ public class LocalConfig {
     }  
 }
 ```
+
+## JMX Management Beans
+
+Also provided is a simple JMX management bean. Currently this bean just provides
+a way to dump the state of the message buffer pool to the system log. The been is registered
+with spring via standard spring configuration; however the exact configuration may
+vary depending on choice of application server. In general, something similar to the below
+will be required:
+
+```xml
+    <bean id="tmpManager" class="com.softwareplumbers.feed.service.sql.SQLFeedServiceMBean">
+        <constructor-arg index="0" ref="tmp" />
+    </bean>
+    
+    <bean id="exporter" class="org.springframework.jmx.export.MBeanExporter">
+        <property name="beans">
+            <map>
+                <entry key="bean:name=feed.service.tmp" value-ref="tmpManager"/>
+            </map>
+        </property>
+        <property name="server" ref="mbeanServer"/>
+    </bean>
+```
+
