@@ -51,7 +51,7 @@ public class LocalConfig {
         return database;
     }
     
-    @Bean public SQLFeedService service() throws SQLException {
+    @Bean public SQLFeedService testService() throws SQLException {
         return new SQLFeedService(database(), 1000000, 2000);
     }
      
