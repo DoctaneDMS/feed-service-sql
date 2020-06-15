@@ -11,6 +11,7 @@ import java.util.Map;
 import javax.annotation.Resource;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -32,18 +33,9 @@ public class LocalConfig {
     @Autowired
     ApplicationContext context;
     
-    @Bean public Schema schema() {
-        Schema schema = new Schema(datasource());
-        schema.setCreateScript(context.getBean("feed.createScript", Script.class));
-        schema.setUpdateScript(context.getBean("feed.updateScript", Script.class));
-        schema.setDropScript(context.getBean("feed.dropScript", Script.class));
-        schema.setEntityMap(context.getBean("feed.entityMap", Map.class));
-        return schema;
-    }
-    
-    @Bean public MessageDatabase database() throws SQLException {
+    @Bean public MessageDatabase database(@Qualifier(value="feed.schema") Schema schema) throws SQLException {
         MessageDatabase database = new MessageDatabase(
-            schema(),
+            schema,
             context.getBean(OperationStore.class),
             context.getBean(TemplateStore.class)
         );
@@ -51,11 +43,11 @@ public class LocalConfig {
         return database;
     }
     
-    @Bean public SQLFeedService testService() throws SQLException {
-        return new SQLFeedService(database(), 1000000, 2000);
+    @Bean public SQLFeedService testService(MessageDatabase database) throws SQLException {
+        return new SQLFeedService(database, 1000000, 2000);
     }
      
-    @Bean public DataSource datasource() {
+    @Bean(name="feed.datasource") public DataSource feedDatasource() {
         DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
         dataSourceBuilder.driverClassName("org.h2.Driver");
         dataSourceBuilder.url("jdbc:h2:file:/var/tmp/doctane/test");

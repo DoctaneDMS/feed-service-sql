@@ -82,8 +82,8 @@
         </constructor-arg>
     </bean>
     
-    <bean id="feed.Schema" class="com.softwareplumbers.common.sql.Schema"> 
-        <qualifier value="feed"/>
+    <bean id="feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
+        <constructor-arg ref="feed.datasource"/>
         <property name="createScript" ref="feed.createScript"/>
         <property name="updateScript" ref="feed.updateScript"/>
         <property name="dropScript" ref="feed.dropScript"/>
