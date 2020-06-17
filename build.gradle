@@ -41,6 +41,7 @@ javadoc {
 
 jar {
 	enabled = true
+    exclude('logback.xml')
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {

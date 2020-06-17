@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import javax.json.Json;
 import javax.json.JsonValue;
+import org.slf4j.ext.XLogger;
+import org.slf4j.ext.XLoggerFactory;
 
 
 /**
@@ -40,6 +42,7 @@ import javax.json.JsonValue;
  */
 public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template> {
 
+    private static final XLogger LOG = XLoggerFactory.getXLogger(DatabaseInterface.class);
     private static final Range NULL_VERSION = Range.equals(Json.createValue(""));  
     private static final Feed ROOT_FEED = new FeedImpl(Id.ROOT_ID.toString(), FeedPath.ROOT);
     
