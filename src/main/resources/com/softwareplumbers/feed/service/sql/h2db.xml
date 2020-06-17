@@ -30,7 +30,7 @@
                     ID UUID PRIMARY KEY,
                     PARENT_ID UUID,
                     NAME VARCHAR(255),
-                    VERSION VARCHAR(255) DEFAULT '',
+                    VERSION VARCHAR(255),
                     DELETED BOOLEAN DEFAULT FALSE
                 );
                 
@@ -65,7 +65,7 @@
                 <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
                 <entry key="GET_MESSAGE" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA FROM MESSAGES WHERE ID=?"/>
                 <entry key="GET_FEED_BY_ID" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE FEED_ID=?"/>
-                <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME) VALUES (?,?,?)"/>
+                <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME, VERSION) VALUES (?,?,?,?)"/>
             </map>
         </constructor-arg>
     </bean>
@@ -76,7 +76,7 @@
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
                 <entry key="NAME_EXPR">
-                    <value> || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='', '', '@' || T!{0}.VERSION)</value>
+                    <value> || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
                 </entry>
             </map>
         </constructor-arg>

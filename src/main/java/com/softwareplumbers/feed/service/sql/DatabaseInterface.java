@@ -43,7 +43,8 @@ import org.slf4j.ext.XLoggerFactory;
 public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template> {
 
     private static final XLogger LOG = XLoggerFactory.getXLogger(DatabaseInterface.class);
-    private static final Range NULL_VERSION = Range.equals(Json.createValue(""));  
+    public static final String NULL_VERSION_VALUE = "__CURRENT";
+    private static final Range NULL_VERSION = Range.equals(Json.createValue("NULL_VERSION_VALUE"));  
     private static final Feed ROOT_FEED = new FeedImpl(Id.ROOT_ID.toString(), FeedPath.ROOT);
     
     private static final Mapper<Id> GET_ID = results->Id.of(results.getBytes("ID"));
@@ -225,6 +226,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
             .set(CustomTypes.ID, 1, id)
             .set(CustomTypes.ID, 2, Id.of(parent.getId()))
             .set(3, name)
+            .set(4, NULL_VERSION_VALUE)
             .execute(con);
         return LOG.exit(new FeedImpl(id.toString(), parent.getName().add(name)));
     }

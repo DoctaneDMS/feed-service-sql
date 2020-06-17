@@ -28,7 +28,7 @@ public class CustomTypes {
         if (path.isEmpty()) return fluentStatement.set(ID, name, Id.ROOT_ID);
         switch (path.part.type) {
             case FEED:
-                return fluentStatement.set(PATH, "parent." + name, path.parent).set(name, path.part.getName().get()).set(name + ".version", path.part.getVersion().orElse("")); 
+                return fluentStatement.set(PATH, "parent." + name, path.parent).set(name, path.part.getName().get()).set(name + ".version", path.part.getVersion().orElse(DatabaseInterface.NULL_VERSION_VALUE)); 
             case MESSAGEID:
                 return fluentStatement.set(PATH, "parent." + name, path.parent).set(name, path.part.getId().get()); 
             case FEEDID:
