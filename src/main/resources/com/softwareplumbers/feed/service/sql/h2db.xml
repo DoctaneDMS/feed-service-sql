@@ -54,6 +54,7 @@
     <bean id="feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
+                DROP INDEX IF EXISTS FEED_NAME;
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
             </value>
         </property>
