@@ -5,7 +5,7 @@ buildscript {
 }
 
 plugins {
-  id "org.jdrupes.mdoclet" version "1.0.5"
+  id "org.jdrupes.mdoclet" version "1.0.10"
   id 'org.springframework.boot' version '1.5.22.RELEASE' apply false
 }
 
@@ -28,7 +28,8 @@ test {
 	systemProperties = System.properties
     systemProperty "doctane.keystore.password", propValue("keystorePassword", "changeme")
     systemProperty "spring.profiles.active", "test"
-
+    systemProperty "database.url", propValue("databaseUrl", "jdbc:h2:file://var/tmp/test/h2")
+    
     testLogging {
         events "passed", "skipped", "failed"
     }

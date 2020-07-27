@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ImportResource;
+import org.springframework.core.env.Environment;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -32,6 +33,9 @@ public class LocalConfig {
     
     @Autowired
     ApplicationContext context;
+    
+    @Autowired
+    Environment env;
     
     @Bean public MessageDatabase database(@Qualifier(value="feed.schema") Schema schema) throws SQLException {
         MessageDatabase database = new MessageDatabase(
@@ -50,7 +54,7 @@ public class LocalConfig {
     @Bean(name="feed.datasource") public DataSource feedDatasource() {
         DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
         dataSourceBuilder.driverClassName("org.h2.Driver");
-        dataSourceBuilder.url("jdbc:h2:file:/var/tmp/doctane/test");
+        dataSourceBuilder.url(env.getProperty("database.url"));
         dataSourceBuilder.username("sa");
         dataSourceBuilder.password("");
         return dataSourceBuilder.build();        
