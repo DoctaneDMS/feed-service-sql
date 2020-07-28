@@ -4,7 +4,7 @@
         class="ch.qos.logback.core.ConsoleAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
             <Pattern>
-               %-5level %X{user} [%t] %C{1.}/%M: %msg%n%throwable
+               %d{yyyy-MM-dd_HH:mm:ss.SSS} %-5level %X{user} [%t] %C{1.}/%M: %msg%n%throwable
             </Pattern>
         </layout>
     </appender>
@@ -12,6 +12,7 @@
         <appender-ref ref="Console" />
     </root>
     <logger name="com.softwareplumbers.feed" level="TRACE"/>
+    <logger name="com.softwareplumbers.feed.test" level="TRACE"/>
     <logger name="com.softwareplumbers.feed.impl" level="TRACE"/>
     <logger name="com.softwareplumbers.feed.impl.buffer" level="TRACE"/>
     <logger name="com.softwareplumbers.feed.service.sql" level="TRACE"/>
