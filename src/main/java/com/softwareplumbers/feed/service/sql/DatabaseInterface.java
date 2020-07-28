@@ -219,6 +219,12 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
         }
     }
     
+    public Feed getFeed(FeedPath path) throws SQLException, InvalidPath {
+        LOG.entry(path);
+        if (path.isEmpty()) return LOG.exit(ROOT_FEED);
+        return LOG.exit(getFeed(path, GET_FEED).orElseThrow(()->LOG.throwing(new InvalidPath(path))));
+    }
+    
     Feed createFeed(Feed parent, String name) throws SQLException {
         LOG.entry(parent, name);
         Id id = Id.generate();

@@ -13,6 +13,7 @@ import com.softwareplumbers.feed.Message;
 import com.softwareplumbers.feed.MessageIterator;
 import com.softwareplumbers.feed.impl.AbstractFeedService;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import org.slf4j.ext.XLogger;
 import org.slf4j.ext.XLoggerFactory;
@@ -46,9 +47,16 @@ public class SQLFeedService extends AbstractFeedService {
     protected void startBackEndListener(FeedPath path, Instant from) {
         LOG.entry(path, from);
         try (DatabaseInterface dbi = database.getInterface()) {
-            Feed feed = dbi.getOrCreateFeed(path);
-            dbi.commit();
-            listen(path, from, messages->writeToDatabase(feed, from, messages));
+            Feed feed;
+            try {
+                feed = dbi.getOrCreateFeed(path);
+                dbi.commit();
+            } catch (SQLIntegrityConstraintViolationException sqe) {
+                LOG.catching(sqe);
+                feed = dbi.getFeed(path);
+            }
+            Feed foundFeed = feed; // fucking java
+            listen(path, from, messages->writeToDatabase(foundFeed, from, messages));            
         } catch (SQLException sqe) {
             LOG.error("Critical error - unable to start database listener");
             LOG.catching(sqe);
