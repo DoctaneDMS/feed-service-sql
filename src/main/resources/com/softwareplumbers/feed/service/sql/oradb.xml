@@ -1,20 +1,23 @@
 <?xml version = "1.0" encoding = "UTF-8"?>
 
 <beans xmlns="http://www.springframework.org/schema/beans"
-        xmlns:context="http://www.springframework.org/schema/context"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="
- 	http://www.springframework.org/schema/beans
-	http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
-       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
-       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd" xmlns:aop="http://www.springframework.org/schema/aop">
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd" 
+    default-lazy-init="true"
+>
     
     <context:annotation-config />
     
     <bean id="conversionService"
     class="org.springframework.context.support.ConversionServiceFactoryBean"/>
       
-    <bean id="feed.dropScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="oracle.feed.dropScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
                 DROP TABLE FEEDS;
@@ -24,7 +27,7 @@
         <property name="OnError" value="WARNING"/>
     </bean>
         
-    <bean id="feed.createScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="oracle.feed.createScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>                
                 CREATE TABLE FEEDS (
@@ -53,7 +56,7 @@
         <property name="OnError" value="WARNING"/>
     </bean>
     
-    <bean id="feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
+    <bean id="oracle.feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
@@ -62,7 +65,7 @@
         <property name="OnError" value="WARNING"/>
     </bean>
     
-    <bean id="feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
+    <bean id="oracle.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
                 <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
@@ -73,7 +76,7 @@
         </constructor-arg>
     </bean>
     
-    <bean id="feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
+    <bean id="oracle.feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Template">
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
@@ -85,11 +88,11 @@
         </constructor-arg>
     </bean>
     
-    <bean id="feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
-        <constructor-arg ref="feed.datasource"/>
-        <property name="createScript" ref="feed.createScript"/>
-        <property name="updateScript" ref="feed.updateScript"/>
-        <property name="dropScript" ref="feed.dropScript"/>
-        <property name="entityMap" ref="feed.entityMap"/>
+    <bean id="oracle.feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
+        <constructor-arg ref="oracle.feed.datasource"/>
+        <property name="createScript" ref="oracle.feed.createScript"/>
+        <property name="updateScript" ref="oracle.feed.updateScript"/>
+        <property name="dropScript" ref="oracle.feed.dropScript"/>
+        <property name="entityMap" ref="oracle.feed.entityMap"/>
     </bean>
 </beans>

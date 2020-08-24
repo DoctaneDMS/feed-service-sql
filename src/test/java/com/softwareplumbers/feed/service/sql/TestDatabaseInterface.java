@@ -41,9 +41,6 @@ public class TestDatabaseInterface {
     @Autowired
     MessageDatabase database;
     
-    @Autowired
-    Schema schema;
-    
     @Before
     public void createSchema() throws SQLException {
         try (Connection con = database.getDataSource().getConnection()) {

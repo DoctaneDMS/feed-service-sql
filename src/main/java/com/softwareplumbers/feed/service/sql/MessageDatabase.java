@@ -6,10 +6,14 @@
 package com.softwareplumbers.feed.service.sql;
 
 import com.softwareplumbers.common.sql.AbstractDatabase;
+import static com.softwareplumbers.common.sql.AbstractDatabase.defaultValueFormatter;
 import com.softwareplumbers.common.sql.OperationStore;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.common.sql.TemplateStore;
 import java.sql.SQLException;
+import java.util.function.BiFunction;
+import javax.json.JsonString;
+import javax.json.JsonValue;
 import javax.sql.DataSource;
 /**
  *
@@ -51,4 +55,16 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
         NAME_EXPR,
         GET_FEED_BY_NAME
     }
+    
+    public static class MySQLValueFormatter implements BiFunction<DataType, JsonValue, String> {
+        @Override
+        public String apply(DataType type, JsonValue value) {
+            if (type == null) return defaultValueFormatter(type, value);
+            switch (type) {
+                case UUID:
+                    return "UUID_TO_BIN('" + ((JsonString)value).getString() + "')";
+                default: return defaultValueFormatter(type,value);
+            }
+        }
+    }    
 }

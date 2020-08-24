@@ -20,10 +20,10 @@
     <bean id="feed.feeds" class="com.softwareplumbers.common.sql.Schema.Entity">
         <constructor-arg>
             <map>
-                <entry key="id" value="ID"/>
+                <entry key="id" value="ID UUID"/>
                 <entry key="version" value="VERSION"/>
-                <entry key="parentId" value="PARENT_ID"/>
-                <entry key="parent" value="PARENT_ID"/>
+                <entry key="parentId" value="PARENT_ID UUID"/>
+                <entry key="parent" value="PARENT_ID UUID"/>
                 <entry key="name" value="NAME"/>
                 <entry key="deleted" value="DELETED"/>
             </map>
@@ -40,8 +40,8 @@
     <bean id="feed.messages" class="com.softwareplumbers.common.sql.Schema.Entity">
         <constructor-arg>
             <map>
-                <entry key="id" value="ID"/>
-                <entry key="feed" value="FEED_ID"/>
+                <entry key="id" value="ID UUID"/>
+                <entry key="feed" value="FEED_ID UUID"/>
                 <entry key="sender" value="SENDER"/>
                 <entry key="timestamp" value="RECEIVED"/>
                 <entry key="headers" value="HEADERS"/>

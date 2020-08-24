@@ -8,9 +8,9 @@
         http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
-        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd" 
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+    " 
     default-lazy-init="true"
-
 >
     
     <context:annotation-config />
@@ -18,7 +18,7 @@
     <bean id="conversionService"
     class="org.springframework.context.support.ConversionServiceFactoryBean"/>
       
-    <bean id="h2.feed.dropScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="mysql.feed.dropScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
                 DROP TABLE IF EXISTS FEEDS;
@@ -27,21 +27,21 @@
         </property>
     </bean>
         
-    <bean id="h2.feed.createScript" class="com.softwareplumbers.common.sql.Script">
+    <bean id="mysql.feed.createScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
                 CREATE TABLE FEEDS (
-                    ID UUID PRIMARY KEY,
-                    PARENT_ID UUID,
+                    ID BINARY(16) PRIMARY KEY,
+                    PARENT_ID BINARY(16),
                     NAME VARCHAR(255),
                     VERSION VARCHAR(255),
                     DELETED BOOLEAN DEFAULT FALSE
                 );
                 
-                INSERT INTO FEEDS (ID) VALUES ('00000000-0000-0000-0000-000000000000');
+                INSERT INTO FEEDS (ID) VALUES (UUID_TO_BIN('00000000-0000-0000-0000-000000000000'));
 
                 CREATE TABLE MESSAGES (
-                    ID UUID PRIMARY KEY,
+                    ID BINARY(16) PRIMARY KEY,
                     FULL_NAME VARCHAR(256),
                     SENDER VARCHAR(256),
                     RECEIVED TIMESTAMP,
@@ -50,21 +50,20 @@
                     LENGTH BIGINT,
                     DATA BLOB
                 );
-                
+
+                CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);                
             </value>
         </property>
     </bean>
     
-    <bean id="h2.feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
+    <bean id="mysql.feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
-                DROP INDEX IF EXISTS FEED_NAME;
-                CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
             </value>
         </property>
     </bean>
     
-    <bean id="h2.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
+    <bean id="mysql.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
                 <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
@@ -75,24 +74,25 @@
         </constructor-arg>
     </bean>
     
-    <bean id="h2.feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
+    <bean id="mysql.feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Template">
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
                 <entry key="NAME_EXPR">
-                    <value> || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
+                    <value>CONCAT(!{1}, '/', T!{0}.NAME, IF(T!{0}.VERSION='', '', CONCAT('@', T!{0}.VERSION)))</value>
                 </entry>
             </map>
         </constructor-arg>
     </bean>
     
-    <bean id="h2.feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
-        <property name="createScript" ref="h2.feed.createScript"/>
-        <property name="updateScript" ref="h2.feed.updateScript"/>
-        <property name="dropScript" ref="h2.feed.dropScript"/>
+    <bean id="mysql.feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
+        <property name="valueFormatter"><bean class="com.softwareplumbers.feed.service.sql.MessageDatabase.MySQLValueFormatter"/></property>
+        <property name="createScript" ref="mysql.feed.createScript"/>
+        <property name="updateScript" ref="mysql.feed.updateScript"/>
+        <property name="dropScript" ref="mysql.feed.dropScript"/>
         <property name="supportedEntities" value="com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType"/>
         <property name="supportedTypes" value="com.softwareplumbers.feed.service.sql.MessageDatabase.DataType"/>        
-        <property name="entityMap" ref="feed.entityMap"/>
+        <property name="entityMap" ref="mysql.feed.entityMap"/>
     </bean>
 </beans>

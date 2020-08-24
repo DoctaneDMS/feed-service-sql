@@ -25,11 +25,13 @@ apply plugin: 'maven'
 apply plugin: 'io.spring.dependency-management'
 
 test {
-	systemProperties = System.properties
-    systemProperty "doctane.keystore.password", propValue("keystorePassword", "changeme")
-    systemProperty "spring.profiles.active", "test"
+    systemProperties = System.properties
+    systemProperty "installation.root", propValue("installFolder", "/var/tmp/test/files")
     systemProperty "database.url", propValue("databaseUrl", "jdbc:h2:file://var/tmp/test/h2")
-    
+    systemProperty "database.driver", propValue("databaseDriver", "org.h2.Driver")
+    systemProperty "database.user", propValue("databaseUser", "sa")
+    systemProperty "database.password", propValue("databasePassword", "")
+    systemProperty "database.variant", propValue("databaseVariant", "h2")    
     testLogging {
         events "passed", "skipped", "failed"
     }
