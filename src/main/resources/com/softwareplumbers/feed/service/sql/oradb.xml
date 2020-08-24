@@ -93,6 +93,6 @@
         <property name="createScript" ref="oracle.feed.createScript"/>
         <property name="updateScript" ref="oracle.feed.updateScript"/>
         <property name="dropScript" ref="oracle.feed.dropScript"/>
-        <property name="entityMap" ref="oracle.feed.entityMap"/>
+        <property name="entityMap" ref="feed.entityMap"/>
     </bean>
 </beans>

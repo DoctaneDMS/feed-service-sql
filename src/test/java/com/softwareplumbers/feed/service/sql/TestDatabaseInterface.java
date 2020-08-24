@@ -44,6 +44,7 @@ public class TestDatabaseInterface {
     @Before
     public void createSchema() throws SQLException {
         try (Connection con = database.getDataSource().getConnection()) {
+            con.setAutoCommit(false);
             database.getSchema().getDropScript().runScript(con);
             database.getSchema().getCreateScript().runScript(con);
             database.getSchema().getUpdateScript().runScript(con);

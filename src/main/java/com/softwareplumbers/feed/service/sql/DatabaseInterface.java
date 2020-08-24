@@ -147,21 +147,19 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
     }
        
     String getNameExpression(FeedPath basePath, FeedPath path) {
-        StringBuilder builder = new StringBuilder();
         int depth = path.afterFeedId().size();
-        builder.append("'").append(basePath.join("/")).append("'");      
+        String result = "'" + basePath.toString() + "'";      
         for (int i = depth - 1; i >= 0 ; i--)
-            builder.append(templates.getSQL(Template.NAME_EXPR, Integer.toString(i)));
-        return builder.toString();
+            result = templates.getSQL(Template.NAME_EXPR, Integer.toString(i), result);
+        return result;
     }
     
     ParameterizedSQL getParametrizedNameExpression(FeedPath path) {
-        StringBuilder builder = new StringBuilder();
         int depth = path.afterFeedId().size();
-        builder.append("?");      
+        String result = "?";      
         for (int i = depth - 1; i >= 0 ; i--)
-            builder.append(templates.getSQL(Template.NAME_EXPR, Integer.toString(i)));
-        return new ParameterizedSQL(builder.toString(), "basePath");
+            result = templates.getSQL(Template.NAME_EXPR, Integer.toString(i), result);
+        return new ParameterizedSQL(result, "basePath");
     }    
 
     FluentStatement getFeedSQL(FeedPath path) {

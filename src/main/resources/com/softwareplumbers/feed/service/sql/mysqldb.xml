@@ -44,9 +44,9 @@
                     ID BINARY(16) PRIMARY KEY,
                     FULL_NAME VARCHAR(256),
                     SENDER VARCHAR(256),
-                    RECEIVED TIMESTAMP,
-                    FEED_ID UUID,
-                    HEADERS CLOB,
+                    RECEIVED TIMESTAMP(6),
+                    FEED_ID BINARY(16),
+                    HEADERS JSON,
                     LENGTH BIGINT,
                     DATA BLOB
                 );
@@ -80,7 +80,7 @@
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
                 <entry key="NAME_EXPR">
-                    <value>CONCAT(!{1}, '/', T!{0}.NAME, IF(T!{0}.VERSION='', '', CONCAT('@', T!{0}.VERSION)))</value>
+                    <value>CONCAT(!{1}, '/', T!{0}.NAME, IF(T!{0}.VERSION='__CURRENT', '', CONCAT('@', T!{0}.VERSION)))</value>
                 </entry>
             </map>
         </constructor-arg>
@@ -93,6 +93,6 @@
         <property name="dropScript" ref="mysql.feed.dropScript"/>
         <property name="supportedEntities" value="com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType"/>
         <property name="supportedTypes" value="com.softwareplumbers.feed.service.sql.MessageDatabase.DataType"/>        
-        <property name="entityMap" ref="mysql.feed.entityMap"/>
+        <property name="entityMap" ref="feed.entityMap"/>
     </bean>
 </beans>
