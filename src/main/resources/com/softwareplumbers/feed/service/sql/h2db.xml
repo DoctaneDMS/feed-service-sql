@@ -81,7 +81,7 @@
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
                 <entry key="NAME_EXPR">
-                    <value> || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
+                    <value>!{1} || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
                 </entry>
             </map>
         </constructor-arg>
