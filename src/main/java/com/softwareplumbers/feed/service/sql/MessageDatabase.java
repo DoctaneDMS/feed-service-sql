@@ -7,9 +7,7 @@ package com.softwareplumbers.feed.service.sql;
 
 import com.softwareplumbers.common.sql.AbstractDatabase;
 import static com.softwareplumbers.common.sql.AbstractDatabase.defaultValueFormatter;
-import com.softwareplumbers.common.sql.OperationStore;
 import com.softwareplumbers.common.sql.Schema;
-import com.softwareplumbers.common.sql.TemplateStore;
 import java.sql.SQLException;
 import java.util.function.BiFunction;
 import javax.json.JsonString;
@@ -23,6 +21,10 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
 
     public MessageDatabase(DataSource datasource, Schema<EntityType, DataType> schema) {
         super(datasource, schema);
+    }
+    
+    public MessageDatabase() {
+        super();
     }
 
     @Override
