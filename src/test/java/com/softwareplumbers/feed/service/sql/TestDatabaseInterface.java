@@ -5,7 +5,6 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
-import com.softwareplumbers.common.abstractquery.visitor.Visitors;
 import com.softwareplumbers.common.pipedstream.OutputStreamConsumer;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.feed.Feed;
@@ -17,6 +16,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.stream.Stream;
@@ -46,9 +46,11 @@ public class TestDatabaseInterface {
     
     @Before
     public void createSchema() throws SQLException {
-        schema.dropSchema();        
-        schema.createSchema();        
-        schema.updateSchema();        
+        try (Connection con = database.getDataSource().getConnection()) {
+            database.getSchema().getDropScript().runScript(con);
+            database.getSchema().getCreateScript().runScript(con);
+            database.getSchema().getUpdateScript().runScript(con);
+        }        
     }
     
     public static final FeedPath BASEBALL = FeedPath.valueOf("department/interest/baseball");
@@ -86,12 +88,13 @@ public class TestDatabaseInterface {
     }    
     
     @Test
-    public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException {
+    public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException, InterruptedException {
         try (DatabaseInterface api = database.getInterface()) {
             Feed feed = api.createFeed(BASEBALL);
             Message testMessage = new MessageImpl(addId(BASEBALL), "testuser", Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
             api.createMessage(Id.of(feed.getId()), testMessage);
             api.commit();
+            Thread.sleep(1);
             try (Stream<Message> results = api.getMessages(BASEBALL, Instant.EPOCH, Instant.now())) {
                 Message[] messages = results.toArray(Message[]::new);
                 assertThat(messages, arrayWithSize(1));

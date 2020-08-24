@@ -17,47 +17,49 @@
     <bean id="feed.dropScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
-                DROP TABLE IF EXISTS FEEDS;
-                DROP TABLE IF EXISTS MESSAGES;
+                DROP TABLE FEEDS;
+                DROP TABLE MESSAGES;
             </value>
         </property>
+        <property name="OnError" value="WARNING"/>
     </bean>
         
     <bean id="feed.createScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
-            <value>
+            <value>                
                 CREATE TABLE FEEDS (
-                    ID UUID PRIMARY KEY,
-                    PARENT_ID UUID,
+                    ID RAW(16) PRIMARY KEY,
+                    PARENT_ID RAW(16),
                     NAME VARCHAR(255),
                     VERSION VARCHAR(255),
-                    DELETED BOOLEAN DEFAULT FALSE
+                    DELETED CHAR(1) DEFAULT 'N'
                 );
                 
-                INSERT INTO FEEDS (ID) VALUES ('00000000-0000-0000-0000-000000000000');
+                INSERT INTO FEEDS (ID) VALUES ('00000000000000000000000000000000');
 
                 CREATE TABLE MESSAGES (
-                    ID UUID PRIMARY KEY,
+                    ID RAW(16) PRIMARY KEY,
                     FULL_NAME VARCHAR(256),
                     SENDER VARCHAR(256),
                     RECEIVED TIMESTAMP,
-                    FEED_ID UUID,
+                    FEED_ID RAW(16),
                     HEADERS CLOB,
-                    LENGTH BIGINT,
+                    LENGTH INTEGER,
                     DATA BLOB
                 );
                 
             </value>
         </property>
+        <property name="OnError" value="WARNING"/>
     </bean>
     
     <bean id="feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
-                DROP INDEX IF EXISTS FEED_NAME;
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
             </value>
         </property>
+        <property name="OnError" value="WARNING"/>
     </bean>
     
     <bean id="feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
@@ -77,18 +79,17 @@
                 <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
                 <entry key="NAME_EXPR">
-                    <value> || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
+                    <value> || '/' || T!{0}.NAME || CASE T!{0}.VERSION WHEN '' THEN '' ELSE '@' || T!{0}.VERSION END</value>
                 </entry>
             </map>
         </constructor-arg>
     </bean>
     
     <bean id="feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
+        <constructor-arg ref="feed.datasource"/>
         <property name="createScript" ref="feed.createScript"/>
         <property name="updateScript" ref="feed.updateScript"/>
         <property name="dropScript" ref="feed.dropScript"/>
-        <property name="supportedEntities" value="com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType"/>
-        <property name="supportedTypes" value="com.softwareplumbers.feed.service.sql.MessageDatabase.DataType"/>        
         <property name="entityMap" ref="feed.entityMap"/>
     </bean>
 </beans>

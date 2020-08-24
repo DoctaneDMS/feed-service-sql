@@ -32,7 +32,7 @@
         <property name="id" value="ID"/>
         <property name="links">
             <map>
-                <entry key="parent" value-ref="feed.feeds"/>
+                <entry key="parent" value="FEED"/>
             </map>
         </property>
     </bean>    
@@ -53,12 +53,12 @@
         <property name="id" value="ID"/>        
         <property name="links">
             <map>
-                <entry key="feed" value-ref="feed.feeds"/>
+                <entry key="feed" value="FEED"/>
             </map>
         </property>
     </bean>
     
-    <util:map id="feed.entityMap" key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Type">
+    <util:map id="feed.entityMap">
         <entry key="FEED" value-ref="feed.feeds"/>
         <entry key="MESSAGE" value-ref="feed.messages"/>
     </util:map>

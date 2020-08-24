@@ -10,26 +10,34 @@ import com.softwareplumbers.common.sql.OperationStore;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.common.sql.TemplateStore;
 import java.sql.SQLException;
-
+import javax.sql.DataSource;
 /**
  *
  * @author jonathan
  */
-public class MessageDatabase extends AbstractDatabase<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template, DatabaseInterface> {
+public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template, DatabaseInterface> {
 
-    public MessageDatabase(Schema<Type> schema, OperationStore<Operation> os, TemplateStore<Template> ts) {
-        super(schema, os, ts);
+    public MessageDatabase(DataSource datasource, Schema<EntityType, DataType> schema) {
+        super(datasource, schema);
     }
 
     @Override
-    public DatabaseInterface createInterface(Schema<Type> schema, OperationStore<Operation> os, TemplateStore<Template> ts) throws SQLException {
-        return new DatabaseInterface(schema, os, ts);
+    public DatabaseInterface createInterface() throws SQLException {
+        return new DatabaseInterface(this);
     }
   
-    public enum Type {
+    public enum EntityType {
         MESSAGE,
         FEED
     }
+    
+    public static enum DataType {
+        STRING,
+        UUID,
+        NUMBER,
+        BOOLEAN,
+        BINARY
+    }    
     
     public enum Operation {
         CREATE_FEED,

@@ -37,12 +37,19 @@ public class LocalConfig {
     @Autowired
     Environment env;
     
-    @Bean public MessageDatabase database(@Qualifier(value="feed.schema") Schema schema) throws SQLException {
+    @Bean public MessageDatabase database(
+        @Qualifier(value="feed.datasource") DataSource datasource, 
+        @Qualifier(value="feed.schema") Schema schema,
+        @Qualifier(value="feed.operations") OperationStore<MessageDatabase.Operation> operations,
+        @Qualifier(value="feed.templates") TemplateStore<MessageDatabase.Template> templates
+    ) throws SQLException {
+            
         MessageDatabase database = new MessageDatabase(
-            schema,
-            context.getBean(OperationStore.class),
-            context.getBean(TemplateStore.class)
+            datasource,
+            schema
         );
+        database.setOperations(operations);
+        database.setTemplates(templates);
         database.setCreateOption(CreateOption.RECREATE);
         return database;
     }

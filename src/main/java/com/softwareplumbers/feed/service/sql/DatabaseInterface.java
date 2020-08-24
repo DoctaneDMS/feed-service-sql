@@ -12,9 +12,6 @@ import com.softwareplumbers.common.abstractquery.visitor.Visitors.ParameterizedS
 import com.softwareplumbers.common.sql.AbstractInterface;
 import com.softwareplumbers.common.sql.FluentStatement;
 import com.softwareplumbers.common.sql.Mapper;
-import com.softwareplumbers.common.sql.OperationStore;
-import com.softwareplumbers.common.sql.Schema;
-import com.softwareplumbers.common.sql.TemplateStore;
 import com.softwareplumbers.feed.Feed;
 import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
@@ -23,9 +20,7 @@ import com.softwareplumbers.feed.impl.FeedImpl;
 import com.softwareplumbers.feed.impl.MessageImpl;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Operation;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Template;
-import com.softwareplumbers.feed.service.sql.MessageDatabase.Type;
-import java.io.IOException;
-import java.sql.Connection;
+import com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Optional;
@@ -40,7 +35,7 @@ import org.slf4j.ext.XLoggerFactory;
  *
  * @author jonathan
  */
-public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, MessageDatabase.Operation, MessageDatabase.Template> {
+public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> {
 
     private static final XLogger LOG = XLoggerFactory.getXLogger(DatabaseInterface.class);
     public static final String NULL_VERSION_VALUE = "__CURRENT";
@@ -65,8 +60,8 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
         return new FeedImpl(Id.of(results.getBytes(1)).toString(), FeedPath.valueOf(results.getString(6)));
     };
        
-    public DatabaseInterface(Schema<MessageDatabase.Type> schema, OperationStore<MessageDatabase.Operation> operations, TemplateStore<MessageDatabase.Template> templates) throws SQLException {
-        super(schema, operations, templates);
+    public DatabaseInterface(MessageDatabase database) throws SQLException {
+        super(database);
     }
     
     Query getNameQuery(FeedPath name, boolean hideDeleted) {        
@@ -170,7 +165,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
     }    
 
     FluentStatement getFeedSQL(FeedPath path) {
-        ParameterizedSQL criteria = getParameterizedNameQuery("path", path).toExpression(schema.getFormatter(Type.FEED));
+        ParameterizedSQL criteria = getParameterizedNameQuery("path", path).toExpression(schema.getFormatter(EntityType.FEED));
         ParameterizedSQL name =  getParametrizedNameExpression(path);
         return templates.getStatement(Template.GET_FEED_BY_NAME, name, criteria);
     }
@@ -178,7 +173,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
     FluentStatement getMessagesFromSQL(FeedPath feed) {
         Query feedQuery = getParameterizedNameQuery("path", feed);
         Query messageQuery = Query.intersect(Query.from("feed", feedQuery), Query.from("timestamp", Range.greaterThan(Param.from("from")).intersect(Range.lessThan(Param.from("to")))));
-        return templates.getStatement(Template.SELECT_MESSAGES, messageQuery.toExpression(schema.getFormatter(Type.MESSAGE)));        
+        return templates.getStatement(Template.SELECT_MESSAGES, messageQuery.toExpression(schema.getFormatter(EntityType.MESSAGE)));        
     }
     
     public Stream<Message> getMessages(FeedPath feed, Instant from, Instant to) throws SQLException {
@@ -188,7 +183,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.Type, M
                 .set(CustomTypes.PATH, "path", feed)
                 .set("from", from)
                 .set("to", to)
-                .execute(schema.datasource, GET_MESSAGE)
+                .execute(database.getDataSource(), GET_MESSAGE)
         );
     }
     
