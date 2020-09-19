@@ -5,16 +5,15 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
-import com.softwareplumbers.feed.Feed;
-import com.softwareplumbers.feed.FeedExceptions.BaseRuntimeException;
-import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
-import com.softwareplumbers.feed.FeedPath;
-import com.softwareplumbers.feed.Message;
-import com.softwareplumbers.feed.MessageIterator;
+import com.softwareplumbers.feed.FeedExceptions;
+import com.softwareplumbers.feed.FeedExceptions.StorageException;
+import com.softwareplumbers.feed.impl.AbstractFeed;
 import com.softwareplumbers.feed.impl.AbstractFeedService;
 import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.ext.XLogger;
 import org.slf4j.ext.XLoggerFactory;
 
@@ -28,77 +27,45 @@ public class SQLFeedService extends AbstractFeedService {
     
     private final MessageDatabase database;
     
-    public SQLFeedService(MessageDatabase database, long poolSize, int bucketSize) {
-        super(poolSize, bucketSize);
+    public SQLFeedService(Id nodeId, ExecutorService executor, Instant startTime, MessageDatabase database) {
+        super(nodeId.asUUID(), executor, startTime, new SQLFeedImpl(database));
         this.database = database;
     }
-
-    @Override
-    protected MessageIterator syncFromBackEnd(FeedPath path, Instant from, Instant to) {
-        LOG.entry(path, from, to);
-        try (DatabaseInterface dbi = database.getInterface()) {
-            return LOG.exit(MessageIterator.of(dbi.getMessages(path, from, to)));
-        } catch (SQLException sqe) {
-            throw LOG.throwing(new RuntimeException(sqe));
-        }
-    }
-
-    @Override
-    protected void startBackEndListener(FeedPath path, Instant from) {
-        LOG.entry(path, from);
-        try (DatabaseInterface dbi = database.getInterface()) {
-            Feed feed;
-            try {
-                feed = dbi.getOrCreateFeed(path);
-                dbi.commit();
-            } catch (SQLIntegrityConstraintViolationException sqe) {
-                LOG.catching(sqe);
-                feed = dbi.getFeed(path);
-            }
-            Feed foundFeed = feed; // fucking java
-            listen(path, from, messages->writeToDatabase(foundFeed, from, messages));            
-        } catch (SQLException sqe) {
-            LOG.error("Critical error - unable to start database listener");
-            LOG.catching(sqe);
-            throw LOG.throwing(new RuntimeException(sqe));
-        } catch (InvalidPath e) {
-            LOG.error("Critical error - unable to start database listener");
-            LOG.catching(e);
-            throw LOG.throwing(new BaseRuntimeException(e));
-        }
-        LOG.exit();
-    }
-
-    @Override
-    protected String getIdFromBackEnd() {
-        return Id.generate().toString();
+    
+    
+    private static SQLNode getNode(MessageDatabase database) {
+        LOG.entry(database);
+        try (DatabaseInterface ifc = database.getInterface()) {
+            SQLNode node = ifc.getNode();
+            ifc.commit(); // Because getting the node will create it if it does not exist.
+            return LOG.exit(node);
+        } catch (SQLException e) {
+            throw LOG.throwing(FeedExceptions.runtime(new StorageException(e)));
+        } 
     }
     
-    void writeToDatabase(Feed feed, Instant from, MessageIterator messages) {
-        LOG.entry(feed, from, messages);
-        Instant lastWritten = from;
-        int count = 0;
-        try (DatabaseInterface dbi = database.getInterface()) {
-            while (messages.hasNext()) {
-                Message message = messages.next();
-                try {
-                    dbi.createMessage(Id.of(feed.getId()), message);
-                    dbi.commit();
-                } catch (Exception ex) {
-                    LOG.error("Can't persist message {} {}", message.getName(), message.getTimestamp());
-                    LOG.catching(ex);
-                }
-                lastWritten = message.getTimestamp();
-                count++;
-            }
-        } catch (SQLException sqe) {
-            LOG.error("Catastropic failure {}", sqe);
-            LOG.catching(sqe);
-        } finally {
-            LOG.debug("Wrote {} messages for {} from {} to {}", count, feed, from, lastWritten);
-            Instant next = lastWritten; // It's this kind of thing that really pisses me off about java
-            feed.listen(this, next, msg->writeToDatabase(feed, next, msg));
-        }
-        LOG.exit();
+    private SQLFeedService(MessageDatabase database, SQLNode node) {
+        this(node.id, Executors.newFixedThreadPool(5), node.initTime, database);
     }
+    
+    public SQLFeedService(MessageDatabase database) throws SQLException {
+        this(database, getNode(database));
+    }
+    
+    @Override
+    public AbstractFeed createFeed(AbstractFeed parent, String name) {
+        try (DatabaseInterface ifc = database.getInterface()) {
+            SQLFeedImpl result = ifc.getOrCreateChild((SQLFeedImpl)parent, name);
+            ifc.commit();
+            return result;
+        } catch (SQLException e) {
+            throw FeedExceptions.runtime(new StorageException(e));
+        }
+    }
+
+    @Override
+    protected String generateMessageId() {
+        return UUID.randomUUID().toString();
+    }
+ 
 }

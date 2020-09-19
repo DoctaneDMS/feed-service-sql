@@ -8,245 +8,270 @@ package com.softwareplumbers.feed.service.sql;
 import com.softwareplumbers.common.abstractquery.Param;
 import com.softwareplumbers.common.abstractquery.Query;
 import com.softwareplumbers.common.abstractquery.Range;
-import com.softwareplumbers.common.abstractquery.visitor.Visitors.ParameterizedSQL;
 import com.softwareplumbers.common.sql.AbstractInterface;
 import com.softwareplumbers.common.sql.FluentStatement;
 import com.softwareplumbers.common.sql.Mapper;
-import com.softwareplumbers.feed.Feed;
-import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
 import com.softwareplumbers.feed.Message;
-import com.softwareplumbers.feed.impl.FeedImpl;
+import com.softwareplumbers.feed.Message.RemoteInfo;
+import com.softwareplumbers.feed.MessageType;
 import com.softwareplumbers.feed.impl.MessageImpl;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Operation;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.Template;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.json.Json;
-import javax.json.JsonValue;
 import org.slf4j.ext.XLogger;
 import org.slf4j.ext.XLoggerFactory;
 
 
 /**
  *
- * @author jonathan
+ * @author Jonathan Essex
  */
 public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> {
 
     private static final XLogger LOG = XLoggerFactory.getXLogger(DatabaseInterface.class);
     public static final String NULL_VERSION_VALUE = "__CURRENT";
-    private static final Range NULL_VERSION = Range.equals(Json.createValue("NULL_VERSION_VALUE"));  
-    private static final Feed ROOT_FEED = new FeedImpl(Id.ROOT_ID.toString(), FeedPath.ROOT);
+    private static final Range NULL_VERSION = Range.equals(Json.createValue(NULL_VERSION_VALUE));  
+    //private static final SQLFeedImpl ROOT_FEED = new SQLFeedImpl();
     
     private static final Mapper<Id> GET_ID = results->Id.of(results.getBytes("ID"));
+    private static final Mapper<Instant> GET_TIMESTAMP = results->results.getTimestamp(1).toInstant();
+    private static final Mapper<Id> GET_SELF = results->Id.of(results.getBytes(1));
+    
+    private static final Optional<RemoteInfo> getRemoteInfo(ResultSet results) throws SQLException {
+        byte[] serverId = results.getBytes(10);
+        if (serverId == null)
+            return Optional.empty();
+        else
+            return Optional.of(new RemoteInfo(UUID.nameUUIDFromBytes(serverId), Mapper.toInstant(results.getTimestamp(11))));
+    }
     
     private static final Mapper<Message> GET_MESSAGE = results -> {
-            return new MessageImpl(
-                FeedPath.valueOf(results.getString(2)), 
-                results.getString(3),
-                Mapper.toInstant(results.getTimestamp(4)), 
-                Mapper.toJson(results.getCharacterStream(6)), 
-                results.getBinaryStream(8), 
-                results.getLong(7),
-                true
-            );
+        return new MessageImpl(
+            MessageType.valueOf(results.getString(9)),
+            FeedPath.valueOf(results.getString(2)), 
+            results.getString(3),
+            Mapper.toInstant(results.getTimestamp(4)), // timestamp
+            Optional.ofNullable(results.getBytes(12)).map(Id::of).map(Id::asUUID), // serverId
+            getRemoteInfo(results),
+            Mapper.toJson(results.getCharacterStream(6)), 
+            results.getBinaryStream(8), 
+            results.getLong(7),
+            true
+        );
     };
     
-    private static final Mapper<Feed> GET_FEED = results -> {
-        return new FeedImpl(Id.of(results.getBytes(1)).toString(), FeedPath.valueOf(results.getString(6)));
+    private static final Mapper<SQLNode> GET_NODE = results -> {
+        return new SQLNode(
+            Id.of(results.getBytes(1)),
+            results.getTimestamp(2).toInstant() 
+        );
     };
+    
+    private static final Mapper<SQLFeedImpl> getChildOf(SQLFeedImpl parent) {
+        return results -> {
+            return new SQLFeedImpl(parent, Id.of(results.getBytes(1)), results.getString(3));
+        };
+    }
        
     public DatabaseInterface(MessageDatabase database) throws SQLException {
         super(database);
     }
-    
-    Query getNameQuery(FeedPath name, boolean hideDeleted) {        
-        if (name.isEmpty()) return Query.UNBOUNDED;
-        
-        Query result;
-        
-        if (name.parent.isEmpty()) {
-            if (name.part.type != FeedPath.Element.Type.FEEDID) {
-                result = Query.from("parentId", Range.equals(Json.createValue(Id.ROOT_ID.toString())));              
-            } else {
-                result = Query.UNBOUNDED;
-            }
-        } else {        
-            // First get the query for the parent part of the name
-            if (name.parent.part.type == FeedPath.Element.Type.FEEDID) {
-                result = Query.from("parentId", Range.like(name.parent.part.getId().get()));
-            } else {
-                result = Query.from("parent", getNameQuery(name.parent, hideDeleted));
-            }
-        }
-        
-        // Filter out anything that has been deleted
-        if (hideDeleted) result = result.intersect(Query.from("deleted", Range.equals(JsonValue.FALSE)));
-        
-        // Now add the query for this part of the name
-        switch (name.part.type) {
-            case FEED:
-                result = result.intersect(Query.from("name", Range.like(name.part.getName().get())));
-                result = result.intersect(Query.from("version", name.part.getVersion().map(version->Range.equals(Json.createValue(version))).orElse(NULL_VERSION)));                
-                break;
-            case FEEDID:
-                result = result.intersect(Query.from("id", Range.like(name.part.getId().get())));
-                break;
-            default:
-                throw new RuntimeException("Unsupported element type in path " + name);
-        }
-        return result;
-    } 
-    
-    Query getParameterizedNameQuery(String paramName, FeedPath name) {
-        
-        if (name.isEmpty()) return Query.from("id", Range.equals(Param.from(paramName)));
-        
-        Query result = Query.UNBOUNDED;
-                                
-        // Now add the query for this part of the name
-        switch (name.part.type) {
-            case FEED:
-                result = result.intersect(Query.from("name", Range.equals(Param.from(paramName))));
-                result = result.intersect(Query.from("version", Range.equals(Param.from(paramName+".version"))));                
-                break;
-            case 
-                FEEDID:
-                result = result.intersect(Query.from("id", Range.equals(Param.from(paramName))));
-                break;
-            default:
-                throw new RuntimeException("Unsupported element type in path " + name);
-        }        
+     
+     Query getMessagesRangeQuery(Id feedId, boolean fromInclusive, Optional<Boolean> toInclusive, Query filter) {
+        Query feedQuery = Query.from("feedId", Range.equals(Param.from("feedId")));
+        Query fromQuery = Query.from("timestamp", fromInclusive ? Range.greaterThanOrEqual(Param.from("from")) : Range.greaterThan(Param.from("from")));
+        Query toQuery = toInclusive.isPresent() ? Query.from("timestamp", toInclusive.get() ? Range.lessThanOrEqual(Param.from("to")) : Range.lessThan(Param.from("to"))) : Query.UNBOUNDED;
+        return feedQuery.intersect(fromQuery).intersect(toQuery).intersect(filter);
+    }
 
-        if (name.parent.isEmpty()) {
-            if (name.part.type != FeedPath.Element.Type.FEEDID) {
-                result = Query
-                    .from("parentId", Range.equals(Param.from("parent." + paramName)))
-                    .intersect(result);              
-            } 
-        } else {        
-            // First get the query for the parent part of the name
-            if (name.parent.part.type == FeedPath.Element.Type.FEEDID) {
-                // this shortcut basically just avoids joining to the parent node if the criteria
-                // is just on the node id
-                result = Query
-                    .from("parentId", Range.equals(Param.from("parent." + paramName)))
-                    .intersect(result);
-            } else {
-                result = Query
-                    .from("parent", getParameterizedNameQuery("parent." + paramName, name.parent))
-                    .intersect(result);
-            }
-        }
-                
-        return result;        
-    }
-       
-    String getNameExpression(FeedPath basePath, FeedPath path) {
-        int depth = path.afterFeedId().size();
-        String result = "'" + basePath.toString() + "'";      
-        for (int i = depth - 1; i >= 0 ; i--)
-            result = templates.getSQL(Template.NAME_EXPR, Integer.toString(i), result);
-        return result;
-    }
-    
-    ParameterizedSQL getParametrizedNameExpression(FeedPath path) {
-        int depth = path.afterFeedId().size();
-        String result = "?";      
-        for (int i = depth - 1; i >= 0 ; i--)
-            result = templates.getSQL(Template.NAME_EXPR, Integer.toString(i), result);
-        return new ParameterizedSQL(result, "basePath");
+    Query getRemoteMessagesRangeQuery(Id feedId, boolean fromInclusive, Optional<Boolean> toInclusive, Query filter) {
+        Query baseQuery = getMessagesRangeQuery(feedId, false, toInclusive, filter);
+        Query serverIdQuery = Query.from("serverId", Range.equals(Param.from("serverId")));
+        Query fromQuery = Query.from("timestamp", fromInclusive ? Range.greaterThanOrEqual(Param.from("fromRemote")) : Range.greaterThan(Param.from("fromRemote")));
+        Query toQuery = toInclusive.isPresent() ? Query.from("timestamp", toInclusive.get() ? Range.lessThanOrEqual(Param.from("toRemote")) : Range.lessThan(Param.from("toRemote"))) : Query.UNBOUNDED;
+        return baseQuery.intersect(Query.from("remoteInfo", fromQuery.intersect(toQuery))).intersect(serverIdQuery);
     }    
-
-    FluentStatement getFeedSQL(FeedPath path) {
-        ParameterizedSQL criteria = getParameterizedNameQuery("path", path).toExpression(schema.getFormatter(EntityType.FEED));
-        ParameterizedSQL name =  getParametrizedNameExpression(path);
-        return templates.getStatement(Template.GET_FEED_BY_NAME, name, criteria);
-    }
-
-    FluentStatement getMessagesFromSQL(FeedPath feed) {
-        Query feedQuery = getParameterizedNameQuery("path", feed);
-        Query messageQuery = Query.intersect(Query.from("feed", feedQuery), Query.from("timestamp", Range.greaterThan(Param.from("from")).intersect(Range.lessThan(Param.from("to")))));
-        return templates.getStatement(Template.SELECT_MESSAGES, messageQuery.toExpression(schema.getFormatter(EntityType.MESSAGE)));        
+    
+    FluentStatement getMessagesAtSQL() {
+        return templates.getStatement(
+            Template.SELECT_MESSAGES, 
+            Query.UNBOUNDED
+                .intersect(Query.from("timestamp", Range.equals(Param.from("timestamp"))))
+                .intersect(Query.from("feedId", Range.equals(Param.from("feedId"))))
+            .toExpression(schema.getFormatter(EntityType.MESSAGE)));
     }
     
-    public Stream<Message> getMessages(FeedPath feed, Instant from, Instant to) throws SQLException {
-        LOG.entry(feed, from, to);
+    FluentStatement getMessagesFromSQL(Id feedId, boolean fromInclusive, Optional<Boolean> toInclusive, Query filter) {
+        return templates.getStatement(Template.SELECT_MESSAGES, getMessagesRangeQuery(feedId, fromInclusive, toInclusive, filter).toExpression(schema.getFormatter(EntityType.MESSAGE)));        
+    }
+    
+    FluentStatement getRemoteMessagesFromSQL(Id feedId, boolean fromInclusive, Optional<Boolean> toInclusive, Query filter) {
+        return templates.getStatement(Template.SELECT_MESSAGES, getRemoteMessagesRangeQuery(feedId, fromInclusive, toInclusive, filter).toExpression(schema.getFormatter(EntityType.REMOTE_MESSAGE)));        
+    }
+
+    public Stream<Message> getMessages(Id feedId, Instant from, boolean fromInclusive, Optional<Instant> to, Optional<Boolean> toInclusive, Query filter, Map<String,Object> filterParameters) throws SQLException {
+        LOG.entry(feedId, from, fromInclusive, to, toInclusive);
+        FluentStatement statement = getMessagesFromSQL(feedId, fromInclusive, toInclusive, filter)
+            .set(CustomTypes.ID, "feedId", feedId)
+            .set("from", from);
+
+        if (to.isPresent()) statement = statement.set("to", to.get());
+        
+        return LOG.exit(statement.execute(database.getDataSource(), GET_MESSAGE));
+    }
+
+    public Stream<Message> getMessages(Id feedId, Instant from, boolean fromInclusive, Optional<Instant> to, Optional<Boolean> toInclusive, Id remote, Instant fromRemote, Optional<Instant> toRemote, Query filter, Map<String,Object> filterParameters) throws SQLException {
+        LOG.entry(feedId, from, fromInclusive, to, toInclusive);
+        FluentStatement statement = getRemoteMessagesFromSQL(feedId, fromInclusive, toInclusive, filter)
+                .set(CustomTypes.ID, "feedId", feedId)
+                .set("from", fromRemote)
+                .set(CustomTypes.ID, "serverId", remote)
+                .set("fromRemote", from);
+        
+        if (to.isPresent()) statement = statement.set("toRemote", to.get());
+        if (toRemote.isPresent()) statement = statement.set("to", toRemote.get());
+            
+        return LOG.exit(statement.execute(database.getDataSource(), GET_MESSAGE));
+    }
+
+    public Stream<Message> getMessages(Id messageId) throws SQLException {
+        LOG.entry(messageId);
         return LOG.exit(
-            getMessagesFromSQL(feed)
-                .set(CustomTypes.PATH, "path", feed)
-                .set("from", from)
-                .set("to", to)
+            operations.getStatement(Operation.GET_MESSAGES_BY_ID)
+                .set(CustomTypes.ID, "id", messageId)
                 .execute(database.getDataSource(), GET_MESSAGE)
         );
     }
     
-    public void createMessage(Id feedId, Message message) throws SQLException {
-        LOG.entry();
-        operations.getStatement(Operation.CREATE_MESSAGE)
-            .set(CustomTypes.ID, 1, Id.of(message.getId()))
-            .set(2, message.getName().toString())
-            .set(3, message.getSender())
-            .set(4, message.getTimestamp())
-            .set(CustomTypes.ID, 5, feedId)
-            .set(6, message.getHeaders())
-            .set(7, message.getLength())
-            .set(8, ()->message.getData())
-            .execute(con);
-        LOG.exit();
+    private final Comparator<Message> TYPE_COMPARATOR = Comparator.comparing(Message::getType);
+    private final Comparator<Message> ID_COMPARATOR = Comparator.comparing(Message::getId);
+    private final Comparator<Message> UNIQUE_MESSAGES = ID_COMPARATOR.thenComparing(TYPE_COMPARATOR);
+    
+    public Message[] createMessages(Id feedId, Message... messages) throws SQLException {
+        LOG.entry(feedId, messages);
+        
+        operations.getStatement(Operation.GENERATE_TIMESTAMP).execute(con);
+        
+        operations.getStatementForBatch(Operation.CREATE_MESSAGE)
+            .execute(con, Stream.of(messages), (statement, message)->
+                statement.set(CustomTypes.ID, 1, Id.of(message.getId()))
+                    .set(2, message.getName().toString())
+                    .set(3, message.getSender())
+                    .set(CustomTypes.ID, 4, feedId)
+                    .set(5, message.getHeaders())
+                    .set(6, message.getLength())
+                    .set(7, ()->message.getData())
+                    .set(8, message.getType().toString())
+                    .set(CustomTypes.ID, 9, message.getRemoteInfo().map(ri->Id.of(ri.serverId)).orElse(null))
+                    .set(10, message.getRemoteInfo().map(ri->ri.timestamp).orElse(null))
+        );
+        
+        Map<Message,Integer> originalOrder = IntStream.range(0, messages.length)
+            .mapToObj(Integer::new)
+            .collect(Collectors.toMap(i->messages[i], i->i, (a,b)->{ throw new RuntimeException("Duplicate values"); }, ()->new TreeMap<>(UNIQUE_MESSAGES)));
+        
+        return LOG.exit(
+            operations.getStatement(Operation.GET_NEW_MESSAGES)
+                .set(CustomTypes.ID, 1, feedId)
+                .execute(con, GET_MESSAGE)
+                .sorted(Comparator.comparing(originalOrder::get))
+                .toArray(Message[]::new)
+        );
     }
     
     private static final Object LOCK_FEED_CREATION = new Object();
 
-    public Feed getOrCreateFeed(FeedPath path) throws SQLException, InvalidPath {
-        LOG.entry(path);
-        if (path.isEmpty()) return LOG.exit(ROOT_FEED);
+    public SQLFeedImpl getOrCreateChild(SQLFeedImpl parent, String name) throws SQLException {
+        LOG.entry(parent, name);
         synchronized (LOCK_FEED_CREATION) {
-            Optional<Feed> existing = getFeed(path, GET_FEED);
+            Optional<SQLFeedImpl> existing = getFeed(parent, name);
             if (existing.isPresent()) return LOG.exit(existing.get());
-            return LOG.exit(createFeed(path)); 
+            return LOG.exit(createFeed(parent, name)); 
         }
     }
     
-    public Feed getFeed(FeedPath path) throws SQLException, InvalidPath {
-        LOG.entry(path);
-        if (path.isEmpty()) return LOG.exit(ROOT_FEED);
-        return LOG.exit(getFeed(path, GET_FEED).orElseThrow(()->LOG.throwing(new InvalidPath(path))));
-    }
-    
-    Feed createFeed(Feed parent, String name) throws SQLException {
+    SQLFeedImpl createFeed(SQLFeedImpl parent, String name) throws SQLException {
         LOG.entry(parent, name);
         Id id = Id.generate();
         operations.getStatement(Operation.CREATE_FEED)
             .set(CustomTypes.ID, 1, id)
-            .set(CustomTypes.ID, 2, Id.of(parent.getId()))
+            .set(CustomTypes.ID, 2, parent.id)
             .set(3, name)
             .set(4, NULL_VERSION_VALUE)
             .execute(con);
-        return LOG.exit(new FeedImpl(id.toString(), parent.getName().add(name)));
+        return LOG.exit(new SQLFeedImpl(parent, id, name));
     }
-
-    Feed createFeed(FeedPath path) throws SQLException, InvalidPath {
-        LOG.entry(path);
-        if (path.isEmpty()) return ROOT_FEED;
-        if (path.part.type == FeedPath.Element.Type.MESSAGEID) throw LOG.throwing(new InvalidPath(path));
-        Feed parent = getOrCreateFeed(path.parent);
-        return LOG.exit(createFeed(parent, path.part.getName().get()));
-    }
-    
-    <T> Optional<T> getFeed(FeedPath path, Mapper<T> mapper) throws SQLException {
-        LOG.entry(path, mapper);
-        try (Stream<T> feeds = getFeedSQL(path)
-            .set("basePath", FeedPath.ROOT.toString())
-            .set(CustomTypes.PATH, "path", path)
-            .execute(con, mapper)
+ 
+    Optional<SQLFeedImpl> getRootFeed() throws SQLException {
+        LOG.entry();
+        try (Stream<SQLFeedImpl> feeds = operations.getStatement(Operation.GET_FEED_BY_ID)
+            .set(CustomTypes.ID, 1, Id.ROOT_ID)
+            .execute(con, row->new SQLFeedImpl(Id.ROOT_ID, (MessageDatabase)database)) // This actually doesn't need the database call, but leaving it in because ultimately it will.
         ) {
             return LOG.exit(feeds.findAny());
         }
+    }
+    
+    Optional<SQLFeedImpl> getFeed(SQLFeedImpl parent, String name) throws SQLException {
+        LOG.entry(parent, name);
+        try (Stream<SQLFeedImpl> feeds = operations.getStatement(Operation.GET_FEED_BY_ID_AND_NAME)
+            .set(CustomTypes.ID, 1, parent.id)
+            .set(2, name)
+            .execute(con, getChildOf(parent))
+        ) {
+            return LOG.exit(feeds.findAny());
+        }
+    }
+    
+    Id createSelf() throws SQLException {
+        LOG.entry();
+        Id self = new Id();
+        int count = operations.getStatement(Operation.CREATE_SELF)
+            .set(CustomTypes.ID, 1, self)
+            .execute(con);
+        if (count < 1) throw new RuntimeException("Self entry not created");
+        return LOG.exit(self);
+    }
+    
+    SQLNode createNode(Id self) throws SQLException {
+        LOG.entry(self);
+        Instant initTime = Instant.now();
+        operations.getStatement(Operation.CREATE_NODE)
+            .set(CustomTypes.ID, 1, self)
+            .set(2, initTime)
+            .execute(con);
+        return LOG.exit(new SQLNode(self, initTime));
+    }
+
+    SQLNode getNode() throws SQLException {
+        LOG.entry();
+        Optional<Id> self = 
+            operations.getStatement(Operation.GET_SELF)
+                .execute(con, GET_SELF)
+                .findAny();
+        LOG.debug("self {}", self);
+        if (!self.isPresent()) self = Optional.of(createSelf());
+        Optional<SQLNode> node = operations.getStatement(Operation.GET_NODE)
+            .set(CustomTypes.ID, 1, self.get())
+            .execute(con, GET_NODE)
+            .findAny();
+        LOG.debug("node {}", node);
+        return node.isPresent()
+            ? node.get()
+            : createNode(self.get());
     }
     
 }

@@ -5,12 +5,14 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
+import com.softwareplumbers.common.abstractquery.Query;
 import com.softwareplumbers.common.pipedstream.OutputStreamConsumer;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.feed.Feed;
 import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
 import com.softwareplumbers.feed.FeedPath;
 import com.softwareplumbers.feed.Message;
+import com.softwareplumbers.feed.MessageType;
 import com.softwareplumbers.feed.impl.MessageImpl;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,6 +21,8 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.json.JsonObject;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -64,23 +68,21 @@ public class TestDatabaseInterface {
     @Test
     public void testCreateFeed() throws SQLException, InvalidPath {
         try (DatabaseInterface api = database.getInterface()) {
-            Feed feed = api.createFeed(BASEBALL);
+            SQLFeedImpl feed = api.getOrCreateChild(api.getRootFeed().get(), "test");
             api.commit();
-            assertThat(feed.getId(), not(nullValue()));
-            assertThat(feed.getId(), not(isEmptyString()));
+            assertThat(feed.id, not(nullValue()));
         }
     }
 
     @Test
     public void testGetOrCreateFeed() throws SQLException, InvalidPath {
         try (DatabaseInterface api = database.getInterface()) {
-            Feed feed = api.getOrCreateFeed(SOCCER);
+            SQLFeedImpl feed = api.getOrCreateChild(api.getRootFeed().get(), "test2");
             api.commit();
-            assertThat(feed.getId(), not(nullValue()));
-            assertThat(feed.getId(), not(isEmptyString()));
-            Feed feed2 = api.getOrCreateFeed(SOCCER);
+            assertThat(feed.id, not(nullValue()));
+            SQLFeedImpl feed2 = api.getOrCreateChild(api.getRootFeed().get(), "test2");
             api.commit();
-            assertThat(feed2.getId(), equalTo(feed.getId()));
+            assertThat(feed2.id, equalTo(feed.id));
             assertThat(feed2.getName(), equalTo(feed.getName()));
         }
     }    
@@ -88,18 +90,35 @@ public class TestDatabaseInterface {
     @Test
     public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException, InterruptedException {
         try (DatabaseInterface api = database.getInterface()) {
-            Feed feed = api.createFeed(BASEBALL);
-            Message testMessage = new MessageImpl(addId(BASEBALL), "testuser", Instant.now(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
-            api.createMessage(Id.of(feed.getId()), testMessage);
+            SQLNode node = api.getNode(); // This forces the API to create a node
+            SQLFeedImpl feed = api.getOrCreateChild(api.getRootFeed().get(), "test3");
+            Message testMessage = new MessageImpl(MessageType.NONE, addId(FeedPath.valueOf("test3")), "testuser", Instant.now(), Optional.empty(), Optional.empty(), JsonObject.EMPTY_JSON_OBJECT, toStream("abc123"), -1, false);
+            Message[] insertResults = api.createMessages(feed.id, testMessage);
             api.commit();
-            Thread.sleep(1);
-            try (Stream<Message> results = api.getMessages(BASEBALL, Instant.EPOCH, Instant.now())) {
+            assertThat(insertResults, arrayWithSize(1));
+            try (Stream<Message> results = api.getMessages(feed.id, Instant.EPOCH, true,  Optional.of(Instant.now()), Optional.of(true), Query.UNBOUNDED, Collections.EMPTY_MAP)) {
                 Message[] messages = results.toArray(Message[]::new);
                 assertThat(messages, arrayWithSize(1));
                 assertThat(messages[0], equalTo(testMessage));
                 assertThat(toString(messages[0].getData()), equalTo("abc123"));
                 assertThat(messages[0].getSender(), equalTo("testuser"));
+                assertThat(messages[0].getTimestamp(), equalTo(insertResults[0].getTimestamp()));
+                assertThat(messages[0].getServerId().get(), equalTo(node.id.asUUID()));
             }
         }        
     }
+    
+    @Test
+    public void testGetNode() throws SQLException, InvalidPath {
+        try (DatabaseInterface api = database.getInterface()) {
+            SQLNode node = api.getNode();
+            api.commit();
+            assertThat(node, not(nullValue()));
+            assertThat(node.id, not(nullValue()));
+            // Test we get the same value a second time
+            SQLNode node2 = api.getNode();
+            api.commit();
+            assertThat(node2, equalTo(node));
+        }
+    }       
 }

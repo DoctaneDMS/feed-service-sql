@@ -4,6 +4,8 @@ import com.softwareplumbers.common.sql.CompositeType;
 import com.softwareplumbers.common.sql.CustomType;
 import com.softwareplumbers.common.sql.FluentStatement;
 import com.softwareplumbers.feed.FeedPath;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -17,9 +19,17 @@ import com.softwareplumbers.feed.FeedPath;
  */
 public class CustomTypes {
     
-    public static final CustomType<Id> ID = (statement, index, value) -> {
+    public static final CustomType<Id> ID = new CustomType<Id>() {
+        
+        public void set (PreparedStatement statement, int index, Id value) throws SQLException {
             if (value == null) statement.setNull(index,  java.sql.Types.BINARY);
             else statement.setBytes(index, value.asBytes());            
+        }
+        
+        @Override
+        public String format(Id value) {
+            return value.toString();
+        }
     };
     
     public static final CompositeType<FeedPath> PATH = CustomTypes::setFeedPath;
@@ -31,8 +41,6 @@ public class CustomTypes {
                 return fluentStatement.set(PATH, "parent." + name, path.parent).set(name, path.part.getName().get()).set(name + ".version", path.part.getVersion().orElse(DatabaseInterface.NULL_VERSION_VALUE)); 
             case MESSAGEID:
                 return fluentStatement.set(PATH, "parent." + name, path.parent).set(name, path.part.getId().get()); 
-            case FEEDID:
-                return fluentStatement.set(name, path.part.getId().get());
             default:
                 return fluentStatement.set(PATH, "parent." + name, path.parent);
         }

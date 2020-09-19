@@ -48,7 +48,11 @@
                     FEED_ID RAW(16),
                     HEADERS CLOB,
                     LENGTH INTEGER,
-                    DATA BLOB
+                    DATA BLOB,
+                    TYPE VARCHAR(64),
+                    SERVER_ID RAW(16),
+                    REMOTE_SVR_ID RAW(16),
+                    REMOTE_TIMESTAMP TIMESTAMP
                 );
                 
             </value>
@@ -68,10 +72,15 @@
     <bean id="oracle.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
-                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
-                <entry key="GET_MESSAGE" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA FROM MESSAGES WHERE ID=?"/>
+                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, SERVER_ID, REMOTE_SVR_ID, REMOTE_TIMESTAMP) VALUES (?,?,?, (SELECT NEXT_TIMESTAMP FROM TIMSTAMP_SEQ) ,?,?,?,?,?,?,?,?)"/>
+                <entry key="GET_NEW_MESSAGES" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, SERVER_ID, REMOTE_SVR_ID, REMOTE_TIMESTAMP FROM MESSAGES JOIN TIMESTAMP_SEQ ON MESSAGES.RECEIVED = TIMESTAMP_SEQ.NEXT_TIMESTAMP WHERE FEED_ID=?"/>
+                <entry key="GET_MESSAGES_BY_ID" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, SERVER_ID, REMOTE_SVR_ID, REMOTE_TIMESTAMP FROM MESSAGES WHERE ID=?"/>
                 <entry key="GET_FEED_BY_ID" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE FEED_ID=?"/>
+                <entry key="GET_FEED_BY_ID_AND_NAME" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE PARENT_ID=? AND NAME=?"/>
                 <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME, VERSION) VALUES (?,?,?,?)"/>
+                <entry key="GENERATE_TIMESTAMP" value="UPDATE TIMESTAMP_SEQ SET NEXT_TIMESTAMP = CASEWHEN(CURRENT_TIMESTAMP(9) > NEXT_TIMESTAMP, CURRENT_TIMESTAMP(9), TIMESTAMPADD(NANOSECOND, 1, NEXT_TIMESTAMP))"/>
+                <entry key="GET_NODE" value="SELECT ID, INIT_TIME FROM NODES WHERE ID=?"/>
+                <entry key="GET_SELF" value="SELECT ID FROM SELF"/>
             </map>
         </constructor-arg>
     </bean>
@@ -79,11 +88,7 @@
     <bean id="oracle.feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Template">
-                <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
                 <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
-                <entry key="NAME_EXPR">
-                    <value>!{1} || '/' || T!{0}.NAME || CASE T!{0}.VERSION WHEN '__CURRENT' THEN '' ELSE '@' || T!{0}.VERSION END</value>
-                </entry>
             </map>
         </constructor-arg>
     </bean>

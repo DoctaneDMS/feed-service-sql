@@ -34,7 +34,10 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
   
     public enum EntityType {
         MESSAGE,
-        FEED
+        FEED, 
+        REMOTE_MESSAGE,
+        SELF,
+        NODE
     }
     
     public static enum DataType {
@@ -48,14 +51,19 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
     public enum Operation {
         CREATE_FEED,
         GET_FEED_BY_ID,
+        GET_FEED_BY_ID_AND_NAME,
         CREATE_MESSAGE,
-        GET_MESSAGE
+        GET_MESSAGES_BY_ID,
+        GENERATE_TIMESTAMP,
+        GET_NEW_MESSAGES,
+        CREATE_NODE,
+        CREATE_SELF,
+        GET_NODE,
+        GET_SELF
     }
     
     public enum Template {
-        SELECT_MESSAGES,
-        NAME_EXPR,
-        GET_FEED_BY_NAME
+        SELECT_MESSAGES
     }
     
     public static class MySQLValueFormatter implements BiFunction<DataType, JsonValue, String> {

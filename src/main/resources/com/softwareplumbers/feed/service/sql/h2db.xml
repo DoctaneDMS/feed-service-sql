@@ -21,6 +21,10 @@
     <bean id="h2.feed.dropScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
+                DROP VIEW IF EXISTS VIEW_REMOTE_MESSAGES;
+                DROP TABLE IF EXISTS SELF;
+                DROP TABLE IF EXISTS NODES;
+                DROP TABLE IF EXISTS TIMESTAMP_SEQ;
                 DROP TABLE IF EXISTS FEEDS;
                 DROP TABLE IF EXISTS MESSAGES;
             </value>
@@ -30,6 +34,21 @@
     <bean id="h2.feed.createScript" class="com.softwareplumbers.common.sql.Script">
         <property name="sql" >
             <value>
+                CREATE TABLE SELF (
+                    ID UUID
+                );
+                
+                CREATE TABLE NODES (
+                    ID UUID,
+                    INIT_TIME TIMESTAMP(9) 
+                );
+                
+                CREATE TABLE TIMESTAMP_SEQ (
+                    NEXT_TIMESTAMP TIMESTAMP(9) 
+                );
+                
+                INSERT INTO TIMESTAMP_SEQ (NEXT_TIMESTAMP) VALUES (CURRENT_TIMESTAMP(9));
+                                
                 CREATE TABLE FEEDS (
                     ID UUID PRIMARY KEY,
                     PARENT_ID UUID,
@@ -41,14 +60,17 @@
                 INSERT INTO FEEDS (ID) VALUES ('00000000-0000-0000-0000-000000000000');
 
                 CREATE TABLE MESSAGES (
-                    ID UUID PRIMARY KEY,
+                    ID UUID,
                     FULL_NAME VARCHAR(256),
                     SENDER VARCHAR(256),
-                    RECEIVED TIMESTAMP,
+                    RECEIVED TIMESTAMP(9),
                     FEED_ID UUID,
                     HEADERS CLOB,
                     LENGTH BIGINT,
-                    DATA BLOB
+                    DATA BLOB,
+                    TYPE VARCHAR(64),
+                    REMOTE_SERVER_ID UUID,
+                    REMOTE_TIMESTAMP TIMESTAMP(9)
                 );
                 
             </value>
@@ -58,8 +80,83 @@
     <bean id="h2.feed.updateScript" class="com.softwareplumbers.common.sql.Script">        
         <property name="sql">
             <value>
+                CREATE OR REPLACE VIEW VIEW_REMOTE_MESSAGES AS
+                SELECT
+                    SELF.ID AS SERVER_ID,
+                    LOCAL.ID,
+                    LOCAL.FULL_NAME,
+                    LOCAL.SENDER,
+                    LOCAL.RECEIVED,
+                    LOCAL.FEED_ID,
+                    LOCAL.HEADERS,
+                    LOCAL.LENGTH,
+                    LOCAL.DATA,
+                    LOCAL.TYPE,
+                    LOCAL.REMOTE_SERVER_ID,
+                    LOCAL.REMOTE_TIMESTAMP
+                FROM MESSAGES LOCAL, SELF
+                UNION ALL
+                SELECT
+                    LOCAL.REMOTE_SERVER_ID AS SERVER_ID,
+                    LOCAL.ID,
+                    LOCAL.FULL_NAME,
+                    LOCAL.SENDER,
+                    LOCAL.REMOTE_TIMESTAMP AS RECEIVED,
+                    LOCAL.FEED_ID,
+                    LOCAL.HEADERS,
+                    LOCAL.LENGTH,
+                    LOCAL.DATA,
+                    LOCAL.TYPE,
+                    SELF.ID AS REMOTE_SERVER_ID,
+                    LOCAL.RECEIVED AS REMOTE_TIMESTAMP
+                FROM MESSAGES LOCAL, SELF
+                UNION ALL
+                SELECT
+                    ACK.REMOTE_SERVER_ID AS SERVER_ID,
+                    LOCAL.ID,
+                    LOCAL.FULL_NAME,
+                    LOCAL.SENDER,
+                    ACK.RECEIVED,
+                    LOCAL.FEED_ID,
+                    LOCAL.HEADERS,
+                    LOCAL.LENGTH,
+                    LOCAL.DATA,
+                    LOCAL.TYPE,
+                    SELF.ID AS REMOTE_SERVER_ID,
+                    LOCAL.RECEIVED AS REMOTE_TIMESTAMP
+                FROM SELF, MESSAGES LOCAL JOIN MESSAGES ACK ON (LOCAL.ID = ACK.ID)
+                WHERE LOCAL.REMOTE_SERVER_ID IS NULL
+                AND ACK.TYPE = 'ACK'
+                UNION ALL
+                SELECT
+                    NODES.ID AS SERVER_ID,
+                    LOCAL.ID,
+                    LOCAL.FULL_NAME,
+                    LOCAL.SENDER,
+                    NODES.INIT_TIME,
+                    LOCAL.FEED_ID,
+                    LOCAL.HEADERS,
+                    LOCAL.LENGTH,
+                    LOCAL.DATA,
+                    LOCAL.TYPE,
+                    SELF.ID AS REMOTE_SERVER_ID,
+                    LOCAL.RECEIVED AS REMOTE_TIMESTAMP
+                FROM SELF, MESSAGES LOCAL, NODES 
+                WHERE NOT EXISTS (SELECT ID FROM MESSAGES ACK WHERE LOCAL.ID = ACK.ID AND ACK.TYPE='ACK' AND ACK.REMOTE_SERVER_ID=NODES.ID)
+                AND LOCAL.REMOTE_SERVER_ID IS NULL;
+                
                 DROP INDEX IF EXISTS FEED_NAME;
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);
+                
+                DROP INDEX IF EXISTS MESSAGE_RECEIVED;
+                CREATE INDEX MESSAGE_RECEIVED ON MESSAGES (FEED_ID, RECEIVED);
+
+                DROP INDEX IF EXISTS MESSAGE_REMOTE_TIMESTAMP;
+                CREATE INDEX MESSAGE_REMOTE_TIMESTAMP ON MESSAGES (FEED_ID, REMOTE_SERVER_ID, REMOTE_TIMESTAMP);
+
+                DROP INDEX IF EXISTS MESSAGE_ID;
+                CREATE INDEX MESSAGE_ID ON MESSAGES (ID, TYPE);        
+                
             </value>
         </property>
     </bean>
@@ -67,10 +164,17 @@
     <bean id="h2.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
-                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
-                <entry key="GET_MESSAGE" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA FROM MESSAGES WHERE ID=?"/>
-                <entry key="GET_FEED_BY_ID" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE FEED_ID=?"/>
+                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, REMOTE_SERVER_ID, REMOTE_TIMESTAMP) VALUES (?,?,?, (SELECT NEXT_TIMESTAMP FROM TIMESTAMP_SEQ) ,?,?,?,?,?,?,?)"/>
+                <entry key="GET_NEW_MESSAGES" value="SELECT MESSAGES.ID AS ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, REMOTE_SERVER_ID, REMOTE_TIMESTAMP, SELF.ID AS SERVER_ID FROM SELF, MESSAGES JOIN TIMESTAMP_SEQ ON MESSAGES.RECEIVED = TIMESTAMP_SEQ.NEXT_TIMESTAMP WHERE FEED_ID=?"/>
+                <entry key="GET_MESSAGES_BY_ID" value="SELECT MESSAGES.ID AS ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, REMOTE_SERVER_ID, REMOTE_TIMESTAMP, SELF.ID AS SERVER_ID FROM SELF, MESSAGES WHERE ID=?"/>
+                <entry key="GET_FEED_BY_ID" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE ID=?"/>
+                <entry key="GET_FEED_BY_ID_AND_NAME" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE PARENT_ID=? AND NAME=?"/>
                 <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME, VERSION) VALUES (?,?,?,?)"/>
+                <entry key="GENERATE_TIMESTAMP" value="UPDATE TIMESTAMP_SEQ SET NEXT_TIMESTAMP = CASEWHEN(CURRENT_TIMESTAMP(9) > NEXT_TIMESTAMP, CURRENT_TIMESTAMP(9), TIMESTAMPADD(NANOSECOND, 1, NEXT_TIMESTAMP))"/>
+                <entry key="GET_NODE" value="SELECT ID, INIT_TIME FROM NODES WHERE ID=?"/>
+                <entry key="CREATE_NODE" value="INSERT INTO NODES (ID, INIT_TIME) VALUES (?,?)"/>
+                <entry key="GET_SELF" value="SELECT ID FROM SELF"/>
+                <entry key="CREATE_SELF" value="INSERT INTO SELF (ID) VALUES (?)"/>
             </map>
         </constructor-arg>
     </bean>
@@ -78,11 +182,7 @@
     <bean id="h2.feed.templates" class="com.softwareplumbers.common.sql.TemplateStore" scope="singleton"> 
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Template">
-                <entry key="GET_FEED_BY_NAME" value="SELECT T0.ID, T0.PARENT_ID, T0.NAME, T0.VERSION, T0.DELETED, !{0} AS PATH !{1}"/>
-                <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA !{0}"/>
-                <entry key="NAME_EXPR">
-                    <value>!{1} || '/' || T!{0}.NAME || CASEWHEN(T!{0}.VERSION='__CURRENT', '', '@' || T!{0}.VERSION)</value>
-                </entry>
+                <entry key="SELECT_MESSAGES" value="SELECT T0.ID, T0.FULL_NAME, T0.SENDER, T0.RECEIVED, T0.FEED_ID, T0.HEADERS, T0.LENGTH, T0.DATA, T0.TYPE, T0.REMOTE_SERVER_ID, T0.REMOTE_TIMESTAMP, (SELECT ID FROM SELF) AS SERVER_ID !{0}"/>
             </map>
         </constructor-arg>
     </bean>

@@ -48,7 +48,11 @@
                     FEED_ID BINARY(16),
                     HEADERS JSON,
                     LENGTH BIGINT,
-                    DATA BLOB
+                    DATA BLOB,
+                    TYPE VARCHAR(64),
+                    SERVER_ID BINARY(16),
+                    REMOTE_SVR_ID BINARY(16),
+                    REMOTE_TIMESTAMP TIMESTAMP(6)
                 );
 
                 CREATE UNIQUE INDEX FEED_NAME ON FEEDS (PARENT_ID, NAME, VERSION);                
@@ -66,8 +70,8 @@
     <bean id="mysql.feed.operations" class="com.softwareplumbers.common.sql.OperationStore" scope="singleton">
         <constructor-arg>
             <map key-type="com.softwareplumbers.feed.service.sql.MessageDatabase.Operation">
-                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA) VALUES (?,?,?,?,?,?,?,?)"/>
-                <entry key="GET_MESSAGE" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA FROM MESSAGES WHERE ID=?"/>
+                <entry key="CREATE_MESSAGE" value="INSERT INTO MESSAGES (ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, SERVER_ID, REMOTE_SVR_ID, REMOTE_TIMESTAMP) VALUES (?,?,?,?,?,?,?,?)"/>
+                <entry key="GET_MESSAGE" value="SELECT ID, FULL_NAME, SENDER, RECEIVED, FEED_ID, HEADERS, LENGTH, DATA, TYPE, SERVER_ID, REMOTE_SVR_ID, REMOTE_TIMESTAMP FROM MESSAGES WHERE ID=?"/>
                 <entry key="GET_FEED_BY_ID" value="SELECT ID, PARENT_ID, NAME, VERSION, DELETED FROM FEEDS WHERE FEED_ID=?"/>
                 <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME, VERSION) VALUES (?,?,?,?)"/>
             </map>

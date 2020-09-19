@@ -5,6 +5,10 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
+import com.softwareplumbers.feed.FeedExceptions;
+import java.io.IOException;
+import java.io.PrintWriter;
+
 /**
  *
  * @author jonathan
@@ -17,6 +21,11 @@ public class SQLFeedServiceMBean {
     }
     
     public void dumpState() {
-        service.dumpState();
+        try (PrintWriter out = new PrintWriter(System.err)) {
+            service.dumpState(out);
+        } catch (IOException ioe) {
+            throw FeedExceptions.runtime(ioe);
+        }
+        
     }
 }

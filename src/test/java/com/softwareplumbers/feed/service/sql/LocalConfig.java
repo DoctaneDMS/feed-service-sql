@@ -93,7 +93,7 @@ public class LocalConfig {
     }    
     
     @Bean public SQLFeedService testService(MessageDatabase database) throws SQLException {
-        return new SQLFeedService(database, 1000000, 2000);
+        return new SQLFeedService(database);
     }
      
     @Bean(name="feed.datasource") public DataSource feedDatasource() {

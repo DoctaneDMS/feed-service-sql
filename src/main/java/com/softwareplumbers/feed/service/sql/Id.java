@@ -6,6 +6,7 @@
 package com.softwareplumbers.feed.service.sql;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -35,6 +36,10 @@ public class Id {
         return data;
     }
     
+    public UUID asUUID() {
+        return UUID.fromString(value);
+    }
+    
     public String toString() {
         return value;
     }
@@ -47,10 +52,26 @@ public class Id {
         ByteBuffer bb = ByteBuffer.wrap(data);
         long firstLong = bb.getLong();
         long secondLong = bb.getLong();
-        return new Id(new UUID(firstLong, secondLong).toString());
+        return Id.of(new UUID(firstLong, secondLong));
+    }
+    
+    public static Id of(UUID uuid) {
+        return Id.of(uuid.toString());
     }
     
     public static Id generate() {
         return new Id();
+    }
+    
+    public boolean equals(Id other) {
+        return Objects.equals(this.value, other.value);
+    }
+    
+    public boolean equals(Object other) {
+        return other instanceof Id && this.equals((Id)other);
+    }
+    
+    public int hashCode() {
+        return value.hashCode();
     }
 }
