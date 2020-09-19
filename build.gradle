@@ -32,6 +32,7 @@ test {
     systemProperty "database.user", propValue("databaseUser", "sa")
     systemProperty "database.password", propValue("databasePassword", "")
     systemProperty "database.variant", propValue("databaseVariant", "h2")    
+    systemProperty "spring.datasource.maxActive", 32
     testLogging {
         events "passed", "skipped", "failed"
     }
@@ -114,8 +115,8 @@ dependencyManagement {
 }
 
 dependencies {
-    compile group: 'com.softwareplumbers.oss', name: 'feed-interface-core', version: 'master-SNAPSHOT'
-    compile group: 'com.softwareplumbers.oss', name: 'fluent-statement', version: 'master-SNAPSHOT'
+    compile group: 'com.softwareplumbers.oss', name: 'feed-interface-core', version: '0.0.16'
+    compile group: 'com.softwareplumbers.oss', name: 'fluent-statement', version: '0.0.18'
     compile group: 'javax.json', name: 'javax.json-api', version: '1.1.2'
     compile group: 'org.springframework', name: 'spring-context'
 
@@ -123,7 +124,7 @@ dependencies {
 
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-jdbc'
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test'
-    testCompile group: 'com.softwareplumbers.oss', name: 'feed-interface-core', version: 'master-SNAPSHOT', classifier: 'tests'
+    testCompile group: 'com.softwareplumbers.oss', name: 'feed-interface-core', version: '0.0.16', classifier: 'tests'
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.200'
     testCompile group: 'com.oracle.jdbc', name: 'ojdbc8', version: '18.3.0.0'
     testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.21'

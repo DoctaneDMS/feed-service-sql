@@ -69,7 +69,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
             Mapper.toJson(results.getCharacterStream(6)), 
             results.getBinaryStream(8), 
             results.getLong(7),
-            true
+            false 
         );
     };
     
