@@ -236,14 +236,13 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         }
     }
     
-    Id createSelf() throws SQLException {
-        LOG.entry();
-        Id self = new Id();
+    void createSelf(Id self) throws SQLException {
+        LOG.entry(self);
         int count = operations.getStatement(Operation.CREATE_SELF)
             .set(CustomTypes.ID, 1, self)
             .execute(con);
         if (count < 1) throw new RuntimeException("Self entry not created");
-        return LOG.exit(self);
+        LOG.exit();
     }
     
     SQLNode createNode(Id self) throws SQLException {
@@ -256,14 +255,18 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         return LOG.exit(new SQLNode(self, initTime));
     }
 
-    SQLNode getNode() throws SQLException {
+    SQLNode getNode(Id id) throws SQLException {
         LOG.entry();
         Optional<Id> self = 
             operations.getStatement(Operation.GET_SELF)
                 .execute(con, GET_SELF)
                 .findAny();
         LOG.debug("self {}", self);
-        if (!self.isPresent()) self = Optional.of(createSelf());
+        if (self.isPresent()) {
+            if (!self.get().equals(id)) throw new RuntimeException("SQL node has foreign Id"); 
+        } else {
+            self = Optional.of(id); createSelf(id); 
+        }
         Optional<SQLNode> node = operations.getStatement(Operation.GET_NODE)
             .set(CustomTypes.ID, 1, self.get())
             .execute(con, GET_NODE)

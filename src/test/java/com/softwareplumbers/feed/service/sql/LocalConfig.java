@@ -1,18 +1,16 @@
 package com.softwareplumbers.feed.service.sql;
 
 import com.softwareplumbers.common.sql.AbstractDatabase.CreateOption;
-import com.softwareplumbers.common.sql.OperationStore;
-import com.softwareplumbers.common.sql.Schema;
-import com.softwareplumbers.common.sql.Script;
-import com.softwareplumbers.common.sql.TemplateStore;
-import java.nio.file.Paths;
+import com.softwareplumbers.common.sql.DatabaseConfig;
+import com.softwareplumbers.common.sql.DatabaseConfigFactory;
+import java.net.URI;
 import java.sql.SQLException;
-import java.util.Map;
-import javax.annotation.Resource;
+import java.util.UUID;
+import javax.json.Json;
+import javax.json.JsonObject;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -37,71 +35,42 @@ public class LocalConfig {
     
     @Autowired
     Environment env;
+
+    public static final UUID TEST_UUID_C = UUID.randomUUID();
     
-    @ConditionalOnProperty(value = "database.variant", havingValue = "h2")
-    @Bean public MessageDatabase databaseH2(
-        @Qualifier(value="feed.datasource") DataSource datasource, 
-        @Qualifier(value="h2.feed.schema") Schema schema,
-        @Qualifier(value="h2.feed.operations") OperationStore<MessageDatabase.Operation> operations,
-        @Qualifier(value="h2.feed.templates") TemplateStore<MessageDatabase.Template> templates
-    ) throws SQLException {
-            
-        MessageDatabase database = new MessageDatabase(
-            datasource,
-            schema
-        );
-        database.setOperations(operations);
-        database.setTemplates(templates);
-        database.setCreateOption(CreateOption.RECREATE);
-        return database;
+    
+    @Bean
+    public DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> configFactory() {
+        return variant-> {
+            switch(variant) {
+                case H2: return context.getBean("h2.feed.config", DatabaseConfig.class);
+                case MYSQL: return context.getBean("mysql.feed.config", DatabaseConfig.class);
+                case ORACLE: return context.getBean("oracle.feed.config", DatabaseConfig.class);
+                default: throw new RuntimeException("Unhandled variant " + variant);
+            }
+        };                  
     }
     
-    @ConditionalOnProperty(value = "database.variant", havingValue = "mysql")
-    @Bean public MessageDatabase databaseMySQL(
-        @Qualifier(value="feed.datasource") DataSource datasource, 
-        @Qualifier(value="mysql.feed.schema") Schema schema,
-        @Qualifier(value="mysql.feed.operations") OperationStore<MessageDatabase.Operation> operations,
-        @Qualifier(value="mysql.feed.templates") TemplateStore<MessageDatabase.Template> templates
-    ) throws SQLException {
-            
-        MessageDatabase database = new MessageDatabase(
-            datasource,
-            schema
-        );
-        database.setOperations(operations);
-        database.setTemplates(templates);
-        database.setCreateOption(CreateOption.RECREATE);
-        return database;
-    }    
-    
-    @ConditionalOnProperty(value = "database.variant", havingValue = "oracle")
-    @Bean public MessageDatabase databaseOracle(
-        @Qualifier(value="feed.datasource") DataSource datasource, 
-        @Qualifier(value="oracle.feed.schema") Schema schema,
-        @Qualifier(value="oracle.feed.operations") OperationStore<MessageDatabase.Operation> operations,
-        @Qualifier(value="oracle.feed.templates") TemplateStore<MessageDatabase.Template> templates
-    ) throws SQLException {
-            
-        MessageDatabase database = new MessageDatabase(
-            datasource,
-            schema
-        );
-        database.setOperations(operations);
-        database.setTemplates(templates);
-        database.setCreateOption(CreateOption.RECREATE);
-        return database;
-    }    
-    
-    @Bean public SQLFeedService testService(MessageDatabase database) throws SQLException {
-        return new SQLFeedService(database);
+    public JsonObject credentials() {
+        return Json.createObjectBuilder()
+            .add("username", env.getProperty("database.user"))
+            .add("password", env.getProperty("database.password"))
+            .build();
     }
-     
-    @Bean(name="feed.datasource") public DataSource feedDatasource() {
-        DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
-        dataSourceBuilder.driverClassName(env.getProperty("database.driver"));
-        dataSourceBuilder.url(env.getProperty("database.url"));
-        dataSourceBuilder.username(env.getProperty("database.user"));
-        dataSourceBuilder.password(env.getProperty("database.password"));
-        return dataSourceBuilder.build();        
-    }   
+
+    // This is listed as a dependency just to make sure we start with a clean DB for test purposes
+    @Bean public MessageDatabase cleanDatabase(DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> config) throws SQLException {
+        DataSource ds = DataSourceBuilder.create()
+            .url(env.getProperty("database.url"))
+            .username(env.getProperty("database.user"))
+            .password(env.getProperty("database.password"))
+            .build();
+        MessageDatabase database = new MessageDatabase(ds, config, CreateOption.RECREATE);
+        database.initialize();
+        return database;
+    }
+        
+    @Bean public SQLFeedService testService(DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> config, @Qualifier("cleanDatabase") MessageDatabase cleaner) throws SQLException {
+        return new SQLFeedService(TEST_UUID_C, URI.create(env.getProperty("database.url")), credentials(), config);
+    }     
 }

@@ -7,6 +7,8 @@ package com.softwareplumbers.feed.service.sql;
 
 import com.softwareplumbers.common.sql.AbstractDatabase;
 import static com.softwareplumbers.common.sql.AbstractDatabase.defaultValueFormatter;
+import com.softwareplumbers.common.sql.DatabaseConfig;
+import com.softwareplumbers.common.sql.DatabaseConfigFactory;
 import com.softwareplumbers.common.sql.Schema;
 import java.sql.SQLException;
 import java.util.function.BiFunction;
@@ -19,8 +21,12 @@ import javax.sql.DataSource;
  */
 public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template, DatabaseInterface> {
 
-    public MessageDatabase(DataSource datasource, Schema<EntityType, DataType> schema) {
-        super(datasource, schema);
+    public MessageDatabase(DataSource datasource, DatabaseConfig<EntityType, DataType, Operation, Template> config) {
+        super(datasource, config);
+    }
+
+    public MessageDatabase(DataSource datasource, DatabaseConfigFactory<EntityType, DataType, Operation, Template> config, CreateOption createOption) throws SQLException {
+        super(datasource, config, createOption);
     }
     
     public MessageDatabase() {

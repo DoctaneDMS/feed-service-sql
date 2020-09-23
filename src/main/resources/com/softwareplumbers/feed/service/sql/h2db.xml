@@ -187,7 +187,7 @@
         </constructor-arg>
     </bean>
     
-    <bean id="h2.feed.schema" class="com.softwareplumbers.common.sql.Schema"> 
+    <bean id="h2.feed.schema" class="com.softwareplumbers.common.sql.Schema">
         <property name="createScript" ref="h2.feed.createScript"/>
         <property name="updateScript" ref="h2.feed.updateScript"/>
         <property name="dropScript" ref="h2.feed.dropScript"/>
@@ -195,4 +195,10 @@
         <property name="supportedTypes" value="com.softwareplumbers.feed.service.sql.MessageDatabase.DataType"/>        
         <property name="entityMap" ref="feed.entityMap"/>
     </bean>
+    
+    <bean id="h2.feed.config" class="com.softwareplumbers.common.sql.DatabaseConfig">
+        <property name="schema" ref="h2.feed.schema"/>
+        <property name="operations" ref="h2.feed.operations"/>
+        <property name="templates" ref="h2.feed.templates"/>
+    </bean>    
 </beans>

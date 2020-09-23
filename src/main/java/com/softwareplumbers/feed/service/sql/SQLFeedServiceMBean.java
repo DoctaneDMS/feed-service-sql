@@ -23,9 +23,6 @@ public class SQLFeedServiceMBean {
     public void dumpState() {
         try (PrintWriter out = new PrintWriter(System.err)) {
             service.dumpState(out);
-        } catch (IOException ioe) {
-            throw FeedExceptions.runtime(ioe);
-        }
-        
+        }         
     }
 }

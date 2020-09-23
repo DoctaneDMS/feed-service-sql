@@ -190,4 +190,10 @@
         <property name="supportedTypes" value="com.softwareplumbers.feed.service.sql.MessageDatabase.DataType"/>        
         <property name="entityMap" ref="feed.entityMap"/>
     </bean>
+    
+    <bean id="mysql.feed.config" class="com.softwareplumbers.common.sql.DatabaseConfig">
+        <property name="schema" ref="mysql.feed.schema"/>
+        <property name="operations" ref="mysql.feed.operations"/>
+        <property name="templates" ref="mysql.feed.templates"/>
+    </bean>      
 </beans>

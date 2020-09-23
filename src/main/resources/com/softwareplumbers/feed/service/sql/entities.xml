@@ -49,8 +49,8 @@
                 <entry key="length" value="LENGTH"/>
                 <entry key="data" value="DATA"/>
                 <entry key="type" value="TYPE"/>
-                <entry key="remoteInfo.serverId" value="REMOTE_SVR_ID"/>
-                <entry key="remoteInfo.timestamp" value="REMOTE_TIMSTAMP"/>
+                <entry key="remoteInfo.serverId" value="REMOTE_SERVER_ID"/>
+                <entry key="remoteInfo.timestamp" value="REMOTE_TIMESTAMP"/>
             </map>
         </constructor-arg>    
         <property name="name" value="MESSAGES"/>
