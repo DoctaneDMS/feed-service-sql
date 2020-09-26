@@ -9,6 +9,7 @@ import com.softwareplumbers.feed.FeedService;
 import com.softwareplumbers.feed.impl.Resolver;
 import com.softwareplumbers.feed.test.DummyFeedService;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
@@ -27,7 +28,6 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ImportResource;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.env.Environment;
 
@@ -82,87 +82,82 @@ public class ClusterConfig {
     
     @Bean
     @Scope("singleton") 
-    Resolver<FeedService> resolverFeeds(@Qualifier("testSimpleClusterNodeA") FeedService a, @Qualifier("testSimpleClusterNodeB") FeedService b, DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> config) {
-        final URI TEST_URI_C = URI.create(env.getProperty("database.url"));
+    Resolver<Cluster.Host> resolverClusters() {
         return (uri, credentials) -> {
-            LOG.entry(uri, credentials);
-            if (uri.equals(TEST_URI_A)) return Optional.of(a);
-            if (uri.equals(TEST_URI_B)) return Optional.of(b);
-            if (uri.equals(TEST_URI_C)) {
-                try {
-                    return Optional.of(new SQLFeedService(TEST_UUID_C, uri, credentials, config));
-                } catch (SQLException exp) {
-                    LOG.error("Exception while creating SQLFeedService", exp);
-                    return Optional.empty();
-                }
-            }
+            if (uri.equals(TEST_URI_A)) return Optional.of(context.getBean("testSimpleCluster", Cluster.class).getLocalHost());
+            if (uri.equals(TEST_URI_B)) return Optional.of(context.getBean("remoteSimpleCluster", Cluster.class).getLocalHost());
             return Optional.empty();
         };
     }
 
-    @Bean
-    @Scope("singleton") 
-    Resolver<Cluster> resolverClusters(@Lazy @Qualifier("testSimpleCluster") Cluster a, @Lazy @Qualifier("remoteSimpleCluster") Cluster b) {
-        return (uri, credentials) -> {
-            if (uri.equals(TEST_URI_A)) return Optional.of(a);
-            if (uri.equals(TEST_URI_B)) return Optional.of(b);
-            return Optional.empty();
-        };
+    public JsonObject dbCredentials() {
+        return Json.createObjectBuilder()
+            .add("username", env.getProperty("database.user"))
+            .add("password", env.getProperty("database.password"))
+            .build();
     }
-
+    
     @Bean
     @Scope("singleton")
     Cluster testSimpleCluster(
-        @Qualifier("resolverFeeds") Resolver<FeedService> resolverFeeds, 
-        @Qualifier("resolverClusters") Resolver<Cluster> resolverClusters,
-        @Qualifier("testSimpleClusterNodeA") FeedService nodeA,
+        @Qualifier("resolverClusters") Resolver<Cluster.Host> resolverClusters,
+        DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template>  configFactory,
         @Qualifier("cleanDatabase") MessageDatabase cleanDb // not really a dependency, a hack to ensure we start with a clean database
-    ) throws IOException {        
+    ) throws IOException, SQLException {        
         FilesystemCluster cluster = new FilesystemCluster(
             Executors.newFixedThreadPool(4), 
-            Paths.get(env.getProperty("installation.root")).resolve("cluster"), 
-            resolverFeeds, 
+            Paths.get(env.getProperty("installation.root")).resolve("cluster.json"), 
+            TEST_URI_A,
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        cluster.setCredential(databaseURI, env.getProperty("database.user"), env.getProperty("database.password"));
-        cluster.register(nodeA, TEST_URI_A);
-        //cluster.register(TEST_UUID_C, databaseURI);
+        JsonObject credentials = dbCredentials();
+        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory));
         return cluster;
     }
 
     @Bean
     @Scope("singleton")
     Cluster remoteSimpleCluster(
-        @Qualifier("resolverFeeds") Resolver<FeedService> resolverFeeds, 
-        @Qualifier("resolverClusters") Resolver<Cluster>  resolverClusters,
-        @Qualifier("testSimpleClusterNodeB") FeedService nodeB,
+        @Qualifier("resolverClusters") Resolver<Cluster.Host>  resolverClusters,
+        DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template>  configFactory,
         @Qualifier("cleanDatabase") MessageDatabase cleanDb // not really a dependency, a hack to ensure we start with a clean database
-    ) throws IOException {        
+    ) throws IOException, SQLException {        
         FilesystemCluster cluster = new FilesystemCluster(
             Executors.newFixedThreadPool(4), 
-            Paths.get(env.getProperty("installation.root")).resolve("cluster"), 
-            resolverFeeds, 
+            Paths.get(env.getProperty("installation.root")).resolve("cluster.json"), 
+            TEST_URI_B, 
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        cluster.setCredential(databaseURI, env.getProperty("database.user"), env.getProperty("database.password"));
-        cluster.register(nodeB, TEST_URI_B);
-        //cluster.register(TEST_UUID_C, databaseURI);
+        JsonObject credentials = dbCredentials();
+        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory));
         return cluster;
     }
     
     @Bean
     @Scope("singleton")
-    FeedService testSimpleClusterNodeA() throws URISyntaxException, IOException {
-        FeedService nodeA = new DummyFeedService(100000, 2000);
+    FeedService testSimpleClusterNodeA(@Qualifier("testSimpleCluster") Cluster cluster) throws URISyntaxException, IOException {
+        FeedService nodeA = new DummyFeedService(UUID.randomUUID(), 100000, 2000);
+        cluster.getLocalHost().register(nodeA);
         return nodeA;
     }
 
     @Bean
     @Scope("singleton")
-    FeedService testSimpleClusterNodeB() throws URISyntaxException, IOException {
-        FeedService nodeB = new DummyFeedService(100000, 2000);
+    FeedService testSimpleClusterNodeB(@Qualifier("remoteSimpleCluster") Cluster cluster) throws URISyntaxException, IOException {
+        FeedService nodeB = new DummyFeedService(UUID.randomUUID(), 100000, 2000);
+        cluster.getLocalHost().register(nodeB);
         return nodeB;
     }
+    
+    @Bean
+    @Scope("singleton")
+    FeedService testSimpleClusterNodeC(
+        DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template>  configFactory
+    ) throws URISyntaxException, IOException, SQLException {
+        URI databaseURI = URI.create(env.getProperty("database.url"));
+        JsonObject credentials = dbCredentials();
+        return new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory);
+    }    
 }

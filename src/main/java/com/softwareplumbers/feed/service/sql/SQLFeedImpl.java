@@ -129,4 +129,14 @@ public class SQLFeedImpl extends AbstractFeed {
     public boolean hasCompleteData(FeedService svc, Instant from) {
         return true;
     }
+    
+    @Override
+    public Optional<Instant> getMyLastTimestamp(FeedService service) {
+        LOG.entry();
+        try (DatabaseInterface ifc = database.getInterface()) {
+            return LOG.exit(ifc.getLastTimestampForFeed(id));               
+        } catch (SQLException ex) {
+            throw FeedExceptions.runtime(new StorageException(ex));
+        }        
+    }
 }

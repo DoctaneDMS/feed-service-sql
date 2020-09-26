@@ -33,8 +33,13 @@ test {
     systemProperty "database.password", propValue("databasePassword", "")
     systemProperty "database.variant", propValue("databaseVariant", "h2")    
     systemProperty "spring.datasource.maxActive", 32
-    systemProperty "test.TestCluster.testMessageRoundtripBidirectional.SEND_COUNT", 20
-    systemProperty "test.TestCluster.testMessageRoundtripSingleThread.SEND_COUNT", 20  
+    systemProperty "test.TestCluster.testMessageRoundtripBidirectional.SEND_COUNT", 50
+    systemProperty "test.TestCluster.testMessageRoundtripMonodirectional.SEND_COUNT", 50
+    systemProperty "test.TestCluster.testMessageRoundtripSingleThread.SEND_COUNT", 50  
+    systemProperty "test.TestCluster.TIMEOUT", 10
+    systemProperty "test.TestFeedService.testMessageRoundtripSingleThread.SEND_COUNT", 50
+    systemProperty "test.TestFeedService.testMessageRoundtripMultipleThreads.SEND_COUNT", 20
+    systemProperty "test.TestFeedService.TIMEOUT", 20    
     testLogging {
         events "passed", "skipped", "failed"
         outputs.upToDateWhen {false}

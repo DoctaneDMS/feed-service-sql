@@ -65,7 +65,8 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
         CREATE_NODE,
         CREATE_SELF,
         GET_NODE,
-        GET_SELF
+        GET_SELF,
+        GET_LAST_TIMESTAMP_FOR_FEED
     }
     
     public enum Template {

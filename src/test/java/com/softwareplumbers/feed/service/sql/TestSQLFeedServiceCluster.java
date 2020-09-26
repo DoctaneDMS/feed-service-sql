@@ -8,7 +8,11 @@ package com.softwareplumbers.feed.service.sql;
 import com.softwareplumbers.feed.Cluster;
 import com.softwareplumbers.feed.TestCluster;
 import java.io.PrintWriter;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,12 +32,16 @@ public class TestSQLFeedServiceCluster extends TestCluster {
     @Autowired @Qualifier(value="remoteSimpleCluster")
     protected Cluster remoteCluster;
     
-    
-    @Test
-    public void dumpRemoteCluster() {
-        try (PrintWriter out = new PrintWriter(System.out)) {
-            cluster.dumpState(out);
-            remoteCluster.dumpState(out);
-        }
-    }
+	@Rule
+	public final TestRule watchman = new TestWatcher() {
+
+		// This method gets invoked if the test fails for any reason:
+		@Override
+		protected void failed(Throwable e, Description description) {
+            try (PrintWriter out = new PrintWriter(System.out)) {
+                cluster.dumpState(out);
+                remoteCluster.dumpState(out);
+            }
+		}
+	};    
 }

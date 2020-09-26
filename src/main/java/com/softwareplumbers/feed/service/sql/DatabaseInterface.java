@@ -21,6 +21,7 @@ import com.softwareplumbers.feed.service.sql.MessageDatabase.Template;
 import com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.Map;
@@ -192,14 +193,13 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         );
     }
     
-    private static final Object LOCK_FEED_CREATION = new Object();
 
     public SQLFeedImpl getOrCreateChild(SQLFeedImpl parent, String name) throws SQLException {
         LOG.entry(parent, name);
-        synchronized (LOCK_FEED_CREATION) {
-            Optional<SQLFeedImpl> existing = getFeed(parent, name);
-            if (existing.isPresent()) return LOG.exit(existing.get());
+        try {
             return LOG.exit(createFeed(parent, name)); 
+        } catch (SQLIntegrityConstraintViolationException sql) {
+            return LOG.exit(getFeed(parent, name)).get();
         }
     }
     
@@ -275,6 +275,16 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         return node.isPresent()
             ? node.get()
             : createNode(self.get());
+    }
+    
+    public Optional<Instant> getLastTimestampForFeed(Id feedId) throws SQLException {
+        LOG.entry(feedId);
+        return LOG.exit(
+            operations.getStatement(Operation.GET_LAST_TIMESTAMP_FOR_FEED)
+                .set(CustomTypes.ID, "id", feedId)
+                .execute(database.getDataSource(), GET_TIMESTAMP)
+                .findAny()
+        );        
     }
     
 }

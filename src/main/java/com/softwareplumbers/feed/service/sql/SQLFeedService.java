@@ -94,4 +94,10 @@ public class SQLFeedService extends AbstractFeedService {
     protected String generateMessageId() {
         return UUID.randomUUID().toString();
     }
+    
+    @Override
+    public void close() throws Exception {
+        super.close();
+        database.close();
+    }
 }
