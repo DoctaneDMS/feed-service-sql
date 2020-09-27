@@ -16,7 +16,7 @@ build:
     paths:
       - build
   script:
-      - gradle -P ci_version=${CI_COMMIT_REF_NAME} -P mavenUploadUser=${MAVEN_UPLOAD_USER} -P mavenUploadPassword=${MAVEN_UPLOAD_PASSWORD} -Dorg.gradle.java.home=${JDK_HOME} uploadArchives
+      - gradle -P ci_version=${CI_COMMIT_REF_NAME} -P showStandardStreams=false -P mavenUploadUser=${MAVEN_UPLOAD_USER} -P mavenUploadPassword=${MAVEN_UPLOAD_PASSWORD} -Dorg.gradle.java.home=${JDK_HOME} uploadArchives
         
 buildMonolithMaster:
   stage: downstream-builds
