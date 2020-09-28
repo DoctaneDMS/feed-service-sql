@@ -9,6 +9,7 @@ import com.softwareplumbers.common.abstractquery.Param;
 import com.softwareplumbers.common.abstractquery.Query;
 import com.softwareplumbers.common.abstractquery.Range;
 import com.softwareplumbers.common.immutablelist.QualifiedName;
+import com.softwareplumbers.feed.Feed;
 import com.softwareplumbers.feed.FeedExceptions;
 import com.softwareplumbers.feed.FeedExceptions.StorageException;
 import com.softwareplumbers.feed.FeedService;
@@ -17,6 +18,7 @@ import com.softwareplumbers.feed.Filters.ByRemoteTimestamp;
 import com.softwareplumbers.feed.Message;
 import com.softwareplumbers.feed.MessageIterator;
 import com.softwareplumbers.feed.impl.AbstractFeed;
+import com.softwareplumbers.feed.impl.FeedImpl;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
@@ -131,12 +133,17 @@ public class SQLFeedImpl extends AbstractFeed {
     }
     
     @Override
-    public Optional<Instant> getMyLastTimestamp(FeedService service) {
+    public Optional<Instant> getLastTimestamp() {
         LOG.entry();
         try (DatabaseInterface ifc = database.getInterface()) {
             return LOG.exit(ifc.getLastTimestampForFeed(id));               
         } catch (SQLException ex) {
             throw FeedExceptions.runtime(new StorageException(ex));
         }        
+    }
+    
+    @Override
+    public Feed setLastTimestamp(Optional<Instant> instant) {
+        return new FeedImpl(getName(), instant);
     }
 }
