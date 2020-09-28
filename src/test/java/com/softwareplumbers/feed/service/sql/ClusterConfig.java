@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import javax.json.Json;
@@ -90,11 +91,11 @@ public class ClusterConfig {
         };
     }
 
-    public JsonObject dbCredentials() {
-        return Json.createObjectBuilder()
-            .add("username", env.getProperty("database.user"))
-            .add("password", env.getProperty("database.password"))
-            .build();
+    public Properties dbCredentials() {
+        Properties credentials = new Properties();
+        credentials.put("username", env.getProperty("database.user"));
+        credentials.put("password", env.getProperty("database.password"));
+        return credentials;
     }
     
     @Bean
@@ -111,8 +112,7 @@ public class ClusterConfig {
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        JsonObject credentials = dbCredentials();
-        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory));
+        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials()));
         return cluster;
     }
 
@@ -130,8 +130,7 @@ public class ClusterConfig {
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        JsonObject credentials = dbCredentials();
-        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory));
+        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials()));
         return cluster;
     }
     
@@ -157,7 +156,6 @@ public class ClusterConfig {
         DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template>  configFactory
     ) throws URISyntaxException, IOException, SQLException {
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        JsonObject credentials = dbCredentials();
-        return new SQLFeedService(TEST_UUID_C, databaseURI, credentials, configFactory);
+        return new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials());
     }    
 }

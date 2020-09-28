@@ -21,6 +21,7 @@ import java.net.URI;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -59,11 +60,12 @@ public class SQLFeedService extends AbstractFeedService {
         } 
     }
     
-    private static MessageDatabase getDatabase(URI jdbcURI, JsonObject credentials, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config) throws SQLException {
+    private static MessageDatabase getDatabase(URI jdbcURI, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config, Properties properties) throws SQLException {
         HikariDataSource ds = new HikariDataSource();
+        ds.setDataSourceProperties(properties);
         ds.setJdbcUrl(jdbcURI.toString());
-        ds.setUsername(credentials.getString("username"));
-        ds.setPassword(credentials.getString("password"));    
+        ds.setUsername(properties.getProperty("username"));
+        ds.setPassword(properties.getProperty("password"));    
         return new MessageDatabase(ds, config, CreateOption.NONE);
     }
     
@@ -75,8 +77,8 @@ public class SQLFeedService extends AbstractFeedService {
         this(database, getNode(id, database));
     }
     
-    public SQLFeedService(UUID id, URI jdbcURI, JsonObject credentials, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config) throws SQLException {
-        this(id, getDatabase(jdbcURI, credentials, config));
+    public SQLFeedService(UUID id, URI jdbcURI, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config, Properties properties) throws SQLException {
+        this(id, getDatabase(jdbcURI, config, properties));
     }
     
     @Override

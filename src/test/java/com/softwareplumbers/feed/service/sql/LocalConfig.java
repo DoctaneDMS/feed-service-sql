@@ -5,6 +5,7 @@ import com.softwareplumbers.common.sql.DatabaseConfig;
 import com.softwareplumbers.common.sql.DatabaseConfigFactory;
 import java.net.URI;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.UUID;
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -51,11 +52,11 @@ public class LocalConfig {
         };                  
     }
     
-    public JsonObject credentials() {
-        return Json.createObjectBuilder()
-            .add("username", env.getProperty("database.user"))
-            .add("password", env.getProperty("database.password"))
-            .build();
+    public Properties dbCredentials() {
+        Properties credentials = new Properties();
+        credentials.put("username", env.getProperty("database.user"));
+        credentials.put("password", env.getProperty("database.password"));
+        return credentials;
     }
 
     // This is listed as a dependency just to make sure we start with a clean DB for test purposes
@@ -71,6 +72,6 @@ public class LocalConfig {
     }
         
     @Bean public SQLFeedService testService(DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> config, @Qualifier("cleanDatabase") MessageDatabase cleaner) throws SQLException {
-        return new SQLFeedService(TEST_UUID_C, URI.create(env.getProperty("database.url")), credentials(), config);
+        return new SQLFeedService(TEST_UUID_C, URI.create(env.getProperty("database.url")), config, dbCredentials());
     }     
 }
