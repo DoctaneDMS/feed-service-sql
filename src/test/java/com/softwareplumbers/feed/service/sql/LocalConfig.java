@@ -72,6 +72,6 @@ public class LocalConfig {
     }
         
     @Bean public SQLFeedService testService(DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template> config, @Qualifier("cleanDatabase") MessageDatabase cleaner) throws SQLException {
-        return new SQLFeedService(TEST_UUID_C, URI.create(env.getProperty("database.url")), config, dbCredentials());
+        return new SQLFeedService(TEST_UUID_C, new MessageDatabase(URI.create(env.getProperty("database.url")), dbCredentials(), config, CreateOption.NONE));
     }     
 }

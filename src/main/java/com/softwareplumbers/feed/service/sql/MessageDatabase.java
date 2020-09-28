@@ -10,7 +10,10 @@ import static com.softwareplumbers.common.sql.AbstractDatabase.defaultValueForma
 import com.softwareplumbers.common.sql.DatabaseConfig;
 import com.softwareplumbers.common.sql.DatabaseConfigFactory;
 import com.softwareplumbers.common.sql.Schema;
+import com.zaxxer.hikari.HikariDataSource;
+import java.net.URI;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.function.BiFunction;
 import javax.json.JsonString;
 import javax.json.JsonValue;
@@ -21,6 +24,15 @@ import javax.sql.DataSource;
  */
 public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template, DatabaseInterface> {
 
+    private static DataSource getDatasource(URI jdbcURI, Properties properties) throws SQLException {
+        HikariDataSource ds = new HikariDataSource();
+        ds.setDataSourceProperties(properties);
+        ds.setJdbcUrl(jdbcURI.toString());
+        ds.setUsername(properties.getProperty("username"));
+        ds.setPassword(properties.getProperty("password"));    
+        return ds;
+    }
+    
     public MessageDatabase(DataSource datasource, DatabaseConfig<EntityType, DataType, Operation, Template> config) {
         super(datasource, config);
     }
@@ -28,6 +40,14 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
     public MessageDatabase(DataSource datasource, DatabaseConfigFactory<EntityType, DataType, Operation, Template> config, CreateOption createOption) throws SQLException {
         super(datasource, config, createOption);
     }
+    
+    public MessageDatabase(URI jdbcURI, Properties properties, DatabaseConfig<EntityType, DataType, Operation, Template> config) throws SQLException {
+        super(getDatasource(jdbcURI, properties), config);
+    }
+
+    public MessageDatabase(URI jdbcURI, Properties properties, DatabaseConfigFactory<EntityType, DataType, Operation, Template> config, CreateOption createOption) throws SQLException {
+        super(getDatasource(jdbcURI, properties), config, createOption);
+    }    
     
     public MessageDatabase() {
         super();

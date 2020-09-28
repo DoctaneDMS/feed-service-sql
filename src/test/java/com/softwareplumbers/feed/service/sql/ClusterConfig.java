@@ -1,6 +1,7 @@
 package com.softwareplumbers.feed.service.sql;
 
 import com.softwareplumbers.common.sql.AbstractDatabase;
+import com.softwareplumbers.common.sql.AbstractDatabase.CreateOption;
 import com.softwareplumbers.common.sql.DatabaseConfig;
 import com.softwareplumbers.common.sql.DatabaseConfigFactory;
 import com.softwareplumbers.feed.Cluster;
@@ -112,7 +113,7 @@ public class ClusterConfig {
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials()));
+        cluster.register(new SQLFeedService(TEST_UUID_C, new MessageDatabase(databaseURI, dbCredentials(), configFactory, CreateOption.NONE)));
         return cluster;
     }
 
@@ -130,7 +131,7 @@ public class ClusterConfig {
             resolverClusters
         );
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        cluster.register(new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials()));
+        cluster.register(new SQLFeedService(TEST_UUID_C, new MessageDatabase(databaseURI, dbCredentials(), configFactory, CreateOption.NONE)));
         return cluster;
     }
     
@@ -156,6 +157,6 @@ public class ClusterConfig {
         DatabaseConfigFactory<MessageDatabase.EntityType, MessageDatabase.DataType, MessageDatabase.Operation, MessageDatabase.Template>  configFactory
     ) throws URISyntaxException, IOException, SQLException {
         URI databaseURI = URI.create(env.getProperty("database.url"));
-        return new SQLFeedService(TEST_UUID_C, databaseURI, configFactory, dbCredentials());
+        return new SQLFeedService(TEST_UUID_C, new MessageDatabase(databaseURI, dbCredentials(), configFactory, CreateOption.NONE));
     }    
 }

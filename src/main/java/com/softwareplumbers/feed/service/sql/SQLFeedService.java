@@ -60,14 +60,7 @@ public class SQLFeedService extends AbstractFeedService {
         } 
     }
     
-    private static MessageDatabase getDatabase(URI jdbcURI, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config, Properties properties) throws SQLException {
-        HikariDataSource ds = new HikariDataSource();
-        ds.setDataSourceProperties(properties);
-        ds.setJdbcUrl(jdbcURI.toString());
-        ds.setUsername(properties.getProperty("username"));
-        ds.setPassword(properties.getProperty("password"));    
-        return new MessageDatabase(ds, config, CreateOption.NONE);
-    }
+
     
     private SQLFeedService(MessageDatabase database, SQLNode node) {
         this(node.id, Executors.newScheduledThreadPool(5), node.initTime, database);
@@ -76,11 +69,7 @@ public class SQLFeedService extends AbstractFeedService {
     public SQLFeedService(UUID id, MessageDatabase database) throws SQLException {
         this(database, getNode(id, database));
     }
-    
-    public SQLFeedService(UUID id, URI jdbcURI, DatabaseConfigFactory<EntityType,DataType,Operation,Template> config, Properties properties) throws SQLException {
-        this(id, getDatabase(jdbcURI, config, properties));
-    }
-    
+
     @Override
     public AbstractFeed createFeed(AbstractFeed parent, String name) {
         try (DatabaseInterface ifc = database.getInterface()) {
