@@ -284,7 +284,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         return LOG.exit(
             operations.getStatement(Operation.GET_LAST_TIMESTAMP_FOR_FEED)
                 .set(CustomTypes.ID, 1, feedId)
-                .execute(database.getDataSource(), GET_OPTIONAL_TIMESTAMP)
+                .execute(con, GET_OPTIONAL_TIMESTAMP)
                 .findAny()
                 .get()
         );        
