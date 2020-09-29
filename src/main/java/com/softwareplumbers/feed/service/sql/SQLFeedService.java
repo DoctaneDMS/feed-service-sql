@@ -5,33 +5,18 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
-import com.softwareplumbers.common.sql.AbstractDatabase;
-import com.softwareplumbers.common.sql.AbstractDatabase.CreateOption;
-import com.softwareplumbers.common.sql.DatabaseConfigFactory;
 import com.softwareplumbers.feed.FeedExceptions;
 import com.softwareplumbers.feed.FeedExceptions.StorageException;
 import com.softwareplumbers.feed.impl.AbstractFeed;
 import com.softwareplumbers.feed.impl.AbstractFeedService;
-import com.softwareplumbers.feed.service.sql.MessageDatabase.DataType;
-import com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType;
-import com.softwareplumbers.feed.service.sql.MessageDatabase.Operation;
-import com.softwareplumbers.feed.service.sql.MessageDatabase.Template;
-import com.zaxxer.hikari.HikariDataSource;
-import java.net.URI;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.json.JsonObject;
-import javax.sql.DataSource;
 import org.slf4j.ext.XLogger;
 import org.slf4j.ext.XLoggerFactory;
-import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
 /**
  *

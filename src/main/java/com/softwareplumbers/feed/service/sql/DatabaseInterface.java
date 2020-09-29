@@ -22,6 +22,7 @@ import com.softwareplumbers.feed.service.sql.MessageDatabase.EntityType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.Map;
@@ -49,6 +50,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
     
     private static final Mapper<Id> GET_ID = results->Id.of(results.getBytes("ID"));
     private static final Mapper<Instant> GET_TIMESTAMP = results->results.getTimestamp(1).toInstant();
+    private static final Mapper<Optional<Instant>> GET_OPTIONAL_TIMESTAMP = results->Optional.ofNullable(results.getTimestamp(1)).map(Timestamp::toInstant);
     private static final Mapper<Id> GET_SELF = results->Id.of(results.getBytes(1));
     
     private static final Optional<RemoteInfo> getRemoteInfo(ResultSet results) throws SQLException {
@@ -282,8 +284,9 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         return LOG.exit(
             operations.getStatement(Operation.GET_LAST_TIMESTAMP_FOR_FEED)
                 .set(CustomTypes.ID, 1, feedId)
-                .execute(database.getDataSource(), GET_TIMESTAMP)
+                .execute(database.getDataSource(), GET_OPTIONAL_TIMESTAMP)
                 .findAny()
+                .get()
         );        
     }
     
