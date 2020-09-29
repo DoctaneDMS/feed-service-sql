@@ -247,14 +247,14 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         LOG.exit();
     }
     
-    SQLNode createNode(Id self) throws SQLException {
+    void createNode(Id self) throws SQLException {
         LOG.entry(self);
-        Instant initTime = Instant.now();
+        operations.getStatement(Operation.GENERATE_TIMESTAMP).execute(con);
+
         operations.getStatement(Operation.CREATE_NODE)
             .set(CustomTypes.ID, 1, self)
-            .set(2, initTime)
             .execute(con);
-        return LOG.exit(new SQLNode(self, initTime));
+        LOG.exit();
     }
 
     SQLNode getNode(Id id) throws SQLException {
@@ -274,9 +274,14 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
             .execute(con, GET_NODE)
             .findAny();
         LOG.debug("node {}", node);
-        return node.isPresent()
-            ? node.get()
-            : createNode(self.get());
+        if (!node.isPresent()) {
+            createNode(id);
+            node = operations.getStatement(Operation.GET_NODE)
+                .set(CustomTypes.ID, 1, self.get())
+                .execute(con, GET_NODE)
+                .findAny();            
+        }
+        return node.get();
     }
     
     public Optional<Instant> getLastTimestampForFeed(Id feedId) throws SQLException {

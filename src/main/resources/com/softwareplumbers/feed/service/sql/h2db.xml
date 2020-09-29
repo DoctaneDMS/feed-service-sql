@@ -173,7 +173,7 @@
                 <entry key="CREATE_FEED" value="INSERT INTO FEEDS (ID, PARENT_ID, NAME, VERSION) VALUES (?,?,?,?)"/>
                 <entry key="GENERATE_TIMESTAMP" value="UPDATE TIMESTAMP_SEQ SET NEXT_TIMESTAMP = CASEWHEN(CURRENT_TIMESTAMP(9) > NEXT_TIMESTAMP, CURRENT_TIMESTAMP(9), TIMESTAMPADD(NANOSECOND, 1, NEXT_TIMESTAMP))"/>
                 <entry key="GET_NODE" value="SELECT ID, INIT_TIME FROM NODES WHERE ID=?"/>
-                <entry key="CREATE_NODE" value="INSERT INTO NODES (ID, INIT_TIME) VALUES (?,?)"/>
+                <entry key="CREATE_NODE" value="INSERT INTO NODES (ID, INIT_TIME) VALUES (?,(SELECT NEXT_TIMESTAMP FROM TIMESTAMP_SEQ))"/>
                 <entry key="GET_SELF" value="SELECT ID FROM SELF"/>
                 <entry key="CREATE_SELF" value="INSERT INTO SELF (ID) VALUES (?)"/>
             </map>
