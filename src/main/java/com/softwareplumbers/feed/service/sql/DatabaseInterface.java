@@ -152,7 +152,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         LOG.entry(messageId);
         return LOG.exit(
             operations.getStatement(Operation.GET_MESSAGES_BY_ID)
-                .set(CustomTypes.ID, "id", messageId)
+                .set(CustomTypes.ID, 1, messageId)
                 .execute(database.getDataSource(), GET_MESSAGE)
         );
     }
@@ -281,7 +281,7 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
         LOG.entry(feedId);
         return LOG.exit(
             operations.getStatement(Operation.GET_LAST_TIMESTAMP_FOR_FEED)
-                .set(CustomTypes.ID, "id", feedId)
+                .set(CustomTypes.ID, 1, feedId)
                 .execute(database.getDataSource(), GET_TIMESTAMP)
                 .findAny()
         );        
