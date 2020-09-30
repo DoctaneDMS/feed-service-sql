@@ -15,6 +15,7 @@ import java.net.URI;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 import javax.json.JsonString;
 import javax.json.JsonValue;
 import javax.sql.DataSource;
@@ -104,4 +105,25 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
             }
         }
     }    
+    
+    // I CANNOT EFFING BELIEVE THAT IN 2020 THERE IS NO STANDARD JAVA FUNCTION TO DO THIS
+    private static String toHex(byte[] data) {
+        final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+        StringBuilder builder = new StringBuilder(2 * data.length);
+        for (byte datum : data) builder.append(HEX_CHARS[datum / 16]).append(HEX_CHARS[datum % 16]);
+        return builder.toString();
+    }
+
+    public static class OracleValueFormatter implements BiFunction<DataType, JsonValue, String> {
+        @Override
+        public String apply(DataType type, JsonValue value) {
+            if (type == null) return defaultValueFormatter(type, value);
+            switch (type) {
+                case UUID:
+                    return "HEXTORAW('" + toHex(Id.of(((JsonString)value).getString()).asBytes())+ "')";
+                default: return defaultValueFormatter(type,value);
+            }
+        }
+    }     
+    
 }

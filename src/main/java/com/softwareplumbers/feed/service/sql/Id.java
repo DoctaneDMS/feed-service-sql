@@ -5,6 +5,7 @@
  */
 package com.softwareplumbers.feed.service.sql;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.UUID;
