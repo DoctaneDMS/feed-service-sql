@@ -21,6 +21,7 @@ public class CustomTypes {
     
     public static final CustomType<Id> ID = new CustomType<Id>() {
         
+        @Override
         public void set (PreparedStatement statement, int index, Id value) throws SQLException {
             if (value == null) statement.setNull(index,  java.sql.Types.BINARY);
             else statement.setBytes(index, value.asBytes());            

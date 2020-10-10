@@ -30,7 +30,8 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
         ds.setDataSourceProperties(properties);
         ds.setJdbcUrl(jdbcURI.toString());
         ds.setUsername(properties.getProperty("username"));
-        ds.setPassword(properties.getProperty("password"));    
+        ds.setPassword(properties.getProperty("password"));
+        if (properties.containsKey("driverClassName")) ds.setDriverClassName(properties.getProperty("driverClassName"));
         return ds;
     }
     
