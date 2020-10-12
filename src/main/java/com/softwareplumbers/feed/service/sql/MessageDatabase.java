@@ -33,6 +33,7 @@ public class MessageDatabase extends AbstractDatabase<MessageDatabase.EntityType
         config.setUsername(properties.getProperty("username"));
         config.setPassword(properties.getProperty("password"));
         if (properties.containsKey("driverClassName")) config.setDriverClassName(properties.getProperty("driverClassName"));
+        if (properties.containsKey("connectionInitSql")) config.setConnectionInitSql(properties.getProperty("connectionInitSql"));        
         return new HikariDataSource(config);
     }
     
