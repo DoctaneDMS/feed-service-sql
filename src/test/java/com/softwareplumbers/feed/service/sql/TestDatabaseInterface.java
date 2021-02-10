@@ -10,6 +10,7 @@ import com.softwareplumbers.common.pipedstream.OutputStreamConsumer;
 import com.softwareplumbers.common.sql.Schema;
 import com.softwareplumbers.feed.Feed;
 import com.softwareplumbers.feed.FeedExceptions.InvalidPath;
+import com.softwareplumbers.feed.FeedExceptions.InvalidPathSyntax;
 import com.softwareplumbers.feed.FeedPath;
 import com.softwareplumbers.feed.Message;
 import com.softwareplumbers.feed.MessageType;
@@ -47,8 +48,9 @@ public class TestDatabaseInterface {
     @Autowired
     MessageDatabase database;
     
-    public static final FeedPath BASEBALL = FeedPath.valueOf("department/interest/baseball");
-    public static final FeedPath SOCCER = FeedPath.valueOf("department/interest/soccer");
+    public static final FeedPath BASEBALL = FeedPath.ROOT.add("department").add("interest").add("baseball");
+    public static final FeedPath SOCCER = FeedPath.ROOT.add("department").add("interest").add("soccer");
+    
     public static FeedPath addId(FeedPath path) { return path.addId(Id.generate().toString()); }
     public static InputStream toStream(String data) { return new ByteArrayInputStream(data.getBytes()); }
     public static String toString(InputStream data) throws IOException { 
@@ -80,7 +82,7 @@ public class TestDatabaseInterface {
     }    
     
     @Test
-    public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException, InterruptedException {
+    public void testMessageRoundtrip() throws SQLException, InvalidPath, IOException, InterruptedException, InvalidPathSyntax {
         try (DatabaseInterface api = database.getInterface()) {
             SQLNode node = api.getNode(new Id()); // This forces the API to create a node
             SQLFeedImpl feed = api.getOrCreateChild(api.getRootFeed().get(), "test3");

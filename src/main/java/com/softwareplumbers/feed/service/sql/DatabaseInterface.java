@@ -12,6 +12,8 @@ import com.softwareplumbers.common.sql.AbstractInterface;
 import com.softwareplumbers.common.sql.FluentStatement;
 import com.softwareplumbers.common.sql.Mapper;
 import com.softwareplumbers.feed.FeedPath;
+import com.softwareplumbers.feed.FeedExceptions.InvalidPathSyntax;
+import static com.softwareplumbers.feed.FeedExceptions.runtime;
 import com.softwareplumbers.feed.Message;
 import com.softwareplumbers.feed.Message.RemoteInfo;
 import com.softwareplumbers.feed.MessageType;
@@ -62,18 +64,24 @@ public class DatabaseInterface extends AbstractInterface<MessageDatabase.EntityT
     }
     
     private static final Mapper<Message> GET_MESSAGE = results -> {
-        return new MessageImpl(
-            MessageType.valueOf(results.getString(9)),
-            FeedPath.valueOf(results.getString(2)), 
-            results.getString(3),
-            Mapper.toInstant(results.getTimestamp(4)), // timestamp
-            Optional.ofNullable(results.getBytes(12)).map(Id::of).map(Id::asUUID), // serverId
-            getRemoteInfo(results),
-            Mapper.toJson(results.getCharacterStream(6)), 
-            results.getBinaryStream(8), 
-            results.getLong(7),
-            false 
-        );
+        
+        try {
+            return new MessageImpl(
+                MessageType.valueOf(results.getString(9)),
+                FeedPath.valueOf(results.getString(2)), 
+                results.getString(3),
+                Mapper.toInstant(results.getTimestamp(4)), // timestamp
+                Optional.ofNullable(results.getBytes(12)).map(Id::of).map(Id::asUUID), // serverId
+                getRemoteInfo(results),
+                Mapper.toJson(results.getCharacterStream(6)), 
+                results.getBinaryStream(8), 
+                results.getLong(7),
+                false 
+            );
+        } catch (InvalidPathSyntax pse) {
+            throw runtime(pse);
+        }
+                
     };
     
     private static final Mapper<SQLNode> GET_NODE = results -> {
